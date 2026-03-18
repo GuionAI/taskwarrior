@@ -79,7 +79,6 @@
 #include <CmdStats.h>
 #include <CmdStop.h>
 #include <CmdSummary.h>
-#include <CmdSync.h>
 #include <CmdTags.h>
 #include <CmdTimesheet.h>
 #include <CmdUDAs.h>
@@ -108,6 +107,8 @@ void Command::factory(std::map<std::string, Command*>& all) {
   c = new CmdBurndownWeekly();
   all[c->keyword()] = c;
   c = new CmdCalc();
+  all[c->keyword()] = c;
+  c = new CmdLegacyConfig();
   all[c->keyword()] = c;
   c = new CmdCalendar();
   all[c->keyword()] = c;
@@ -138,8 +139,6 @@ void Command::factory(std::map<std::string, Command*>& all) {
   c = new CmdCompletionTags();
   all[c->keyword()] = c;
   c = new CmdCompletionVersion();
-  all[c->keyword()] = c;
-  c = new CmdConfig();
   all[c->keyword()] = c;
   c = new CmdContext();
   all[c->keyword()] = c;
@@ -218,8 +217,6 @@ void Command::factory(std::map<std::string, Command*>& all) {
   c = new CmdStop();
   all[c->keyword()] = c;
   c = new CmdSummary();
-  all[c->keyword()] = c;
-  c = new CmdSync();
   all[c->keyword()] = c;
   c = new CmdTags();
   all[c->keyword()] = c;

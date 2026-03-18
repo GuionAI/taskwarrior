@@ -44,6 +44,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 
@@ -604,11 +605,15 @@ void CmdEdit::parseTask(Task& task, const std::string& after, const std::string&
 
 ////////////////////////////////////////////////////////////////////////////////
 CmdEdit::editResult CmdEdit::editFile(Task& task) {
-  // Check for file permissions.
-  Directory location(Context::getContext().config.get("data.location"));
-  if (!location.writable()) throw std::string("Your data.location directory is not writable.");
+  // Use system temp directory for edit file placement.
+  std::string location_data;
+  try {
+    location_data = std::filesystem::temp_directory_path().string();
+  } catch (std::filesystem::filesystem_error& e) {
+    throw std::string(std::string("Cannot locate temp directory: ") + e.what());
+  }
 
-  // Create a temp file name in data.location.
+  // Create a temp file name in the temp directory.
   std::stringstream file;
   file << "task." << task.get("uuid").substr(0, 8) << ".task";
 
@@ -618,9 +623,10 @@ CmdEdit::editResult CmdEdit::editFile(Task& task) {
   auto dateformat = Context::getContext().config.get("dateformat.edit");
   if (dateformat == "") dateformat = Context::getContext().config.get("dateformat");
 
-  // Change directory for the editor, doing nothing on error.
+  // Change directory for the editor.
   auto current_dir = Directory::cwd();
-  chdir(location._data.c_str());
+  if (chdir(location_data.c_str()) != 0)
+    throw std::string("Cannot change to temp directory: " + location_data);
 
   // Check if the file already exists, if so, bail out
   Path filepath = Path(file.str());

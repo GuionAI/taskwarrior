@@ -128,24 +128,18 @@ int CmdDiagnostics::execute(std::string& output) {
 #endif
       << "\n\n";
 
-  // Config: .taskrc found, readable, writable
-  File rcFile(Context::getContext().config.file());
   out << bold.colorize("Configuration") << '\n'
-      << "       File: " << rcFile._data << ' ' << (rcFile.exists() ? "(found)" : "(missing)")
-      << ", " << rcFile.size() << ' ' << "bytes"
-      << ", mode " << std::setbase(8) << rcFile.mode() << '\n';
+      << "       File: programmatic (no rc file)\n";
 
-  // Config: data.location found, readable, writable
-  File location(Context::getContext().config.get("data.location"));
-  out << "       Data: " << location._data << ' ' << (location.exists() ? "(found)" : "(missing)")
-      << ", " << (location.is_directory() ? "dir" : "?") << ", mode " << std::setbase(8)
-      << location.mode() << '\n';
+  auto& ctx = Context::getContext();
+  File location(ctx.powersync_db_path);
+  out << "       Data: " << ctx.powersync_db_path << ' '
+      << (location.exists() ? "(found)" : "(missing)") << ", mode " << std::setbase(8)
+      << location.mode() << '\n'
+      << "    User ID: " << ctx.powersync_user_id << '\n';
 
-  char* env = getenv("TASKRC");
-  if (env) out << "     TASKRC: " << env << '\n';
-
-  env = getenv("TASKDATA");
-  if (env) out << "   TASKDATA: " << env << '\n';
+  out << " PS_DB_PATH: " << ctx.powersync_db_path << '\n';
+  out << " PS_USER_ID: " << ctx.powersync_user_id << '\n';
 
   out << "         GC: " << (Context::getContext().config.getBoolean("gc") ? "Enabled" : "Disabled")
       << '\n';
@@ -160,18 +154,17 @@ int CmdDiagnostics::execute(std::string& output) {
     out << "    $EDITOR: " << peditor << '\n';
 
   // Display hook status.
-  Path hookLocation;
-  if (Context::getContext().config.has("hooks.location")) {
-    hookLocation = Path(Context::getContext().config.get("hooks.location"));
-  } else {
-    hookLocation = Path(Context::getContext().config.get("data.location"));
-    hookLocation += "hooks";
-  }
-
   out << bold.colorize("Hooks") << '\n'
       << "     System: "
-      << (Context::getContext().config.getBoolean("hooks") ? "Enabled" : "Disabled") << '\n'
-      << "   Location: " << static_cast<std::string>(hookLocation) << '\n';
+      << (Context::getContext().config.getBoolean("hooks") ? "Enabled" : "Disabled") << '\n';
+
+  Path hookLocation;
+  if (Context::getContext().config.getBoolean("hooks")) {
+    if (Context::getContext().config.has("hooks.location")) {
+      hookLocation = Path(Context::getContext().config.get("hooks.location"));
+    }
+    out << "   Location: " << static_cast<std::string>(hookLocation) << '\n';
+  }
 
   auto hooks = Context::getContext().hooks.list();
   if (hooks.size()) {
