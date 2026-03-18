@@ -24,32 +24,27 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <cmake.h>
-// cmake.h include header must come first
+#ifndef INCLUDED_CMDTREE
+#define INCLUDED_CMDTREE
 
-#include <ColLast.h>
-#include <format.h>
+#include <Command.h>
+#include <Task.h>
+#include <TDB2.h>
 
-////////////////////////////////////////////////////////////////////////////////
-ColumnLast::ColumnLast() {
-  _name = "last";
-  _style = "number";
-  _label = "Last instance";
-  _modifiable = false;
-  _styles = {"number"};
-  _examples = {"12"};
-}
+#include <map>
+#include <string>
+#include <vector>
 
-////////////////////////////////////////////////////////////////////////////////
-// Set the minimum and maximum widths for the value.
-void ColumnLast::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
-  minimum = maximum = 0;
-  if (task.has(_name)) minimum = maximum = task.get(_name).length();
-}
+class CmdTree : public Command {
+ public:
+  CmdTree();
+  int execute(std::string&);
 
-////////////////////////////////////////////////////////////////////////////////
-void ColumnLast::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
-  if (task.has(_name)) renderStringRight(lines, width, color, task.get(_name));
-}
+ private:
+  void renderTree(std::string& output, const rust::Box<tc::TreeMapWrapper>& tree,
+                  const std::map<std::string, Task>& taskMap, const std::string& uuid,
+                  const std::string& prefix, bool isLast, int depth, int maxDepth);
+};
 
+#endif
 ////////////////////////////////////////////////////////////////////////////////

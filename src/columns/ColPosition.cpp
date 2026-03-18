@@ -27,12 +27,28 @@
 #include <cmake.h>
 // cmake.h include header must come first
 
-#include <ColUntil.h>
+#include <ColPosition.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-ColumnUntil::ColumnUntil() {
-  _name = "until";
-  _label = "Until";
+ColumnPosition::ColumnPosition() {
+  _name = "position";
+  _style = "default";
+  _label = "Position";
+  _modifiable = false;
+  _styles = {"default"};
+  _examples = {"0|aaaaaa:"};
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Set the minimum and maximum widths for the value.
+void ColumnPosition::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
+  minimum = maximum = 0;
+  if (task.has(_name)) minimum = maximum = task.get(_name).length();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void ColumnPosition::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
+  if (task.has(_name)) renderStringLeft(lines, width, color, task.get(_name));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

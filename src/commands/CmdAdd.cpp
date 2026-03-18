@@ -31,6 +31,7 @@
 #include <Context.h>
 #include <feedback.h>
 #include <format.h>
+#include <taskchampion-cpp/lib.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 CmdAdd::CmdAdd() {
@@ -40,7 +41,6 @@ CmdAdd::CmdAdd() {
   _read_only = false;
   _displays_id = false;
   _needs_gc = false;
-  _needs_recur_update = false;
   _uses_context = true;
   _accepts_filter = false;
   _accepts_modifications = true;
@@ -61,6 +61,22 @@ int CmdAdd::execute(std::string& output) {
   // inconsistency is probably user error.
   task.validate_add();
 
+  // Compute position if task has a parent (append to end of parent's children).
+  if (task.has("parent") && task.get("parent") != "") {
+    static constexpr const char* TC_NIL_UUID = "00000000-0000-0000-0000-000000000000";
+    auto parent_uuid = task.get("parent");
+    auto tm = Context::getContext().tdb2.tree_map();
+    if (tm->had_invalid_data())
+      Context::getContext().footnote(
+          "Warning: some tasks have invalid parent UUIDs and were promoted to root level.");
+    auto parent_tc = tc::uuid_from_string(parent_uuid);
+    auto nil_uuid = tc::uuid_from_string(TC_NIL_UUID);
+    auto siblings = tm->sibling_positions(parent_tc, false, nil_uuid, false);
+    std::string last_pos;
+    if (!siblings.empty()) last_pos = static_cast<std::string>(siblings.back().value);
+    task.set("position", static_cast<std::string>(tc::tc_append_position(last_pos)));
+  }
+
   Context::getContext().tdb2.add(task);
 
   // Do not display ID 0, users cannot query by that
@@ -71,20 +87,22 @@ int CmdAdd::execute(std::string& output) {
   // it's enduring and never changes, and it's unlikely the caller
   // asked for this if they just wanted a human-friendly number.
 
-  if (Context::getContext().verbose("new-uuid") && status == Task::recurring)
-    output += format("Created task {1} (recurrence template).\n", task.get("uuid"));
+  std::string shortUuid = task.get("uuid").substr(0, 8);
+  std::string parentSuffix;
+  if (task.has("parent") && task.get("parent") != "") {
+    Task parent_task;
+    if (Context::getContext().tdb2.get(task.get("parent"), parent_task))
+      parentSuffix = format(" (child of '{1}')", parent_task.get("description"));
+  }
 
-  else if (Context::getContext().verbose("new-uuid") ||
-           (Context::getContext().verbose("new-id") &&
-            (status == Task::completed || status == Task::deleted)))
-    output += format("Created task {1}.\n", task.get("uuid"));
+  if (Context::getContext().verbose("new-uuid") ||
+      (Context::getContext().verbose("new-id") &&
+       (status == Task::completed || status == Task::deleted)))
+    output += format("Created task {1}{2}.\n", shortUuid, parentSuffix);
 
   else if (Context::getContext().verbose("new-id") &&
            (status == Task::pending || status == Task::waiting))
-    output += format("Created task {1}.\n", task.id);
-
-  else if (Context::getContext().verbose("new-id") && status == Task::recurring)
-    output += format("Created task {1} (recurrence template).\n", task.id);
+    output += format("Created task {1}{2}.\n", shortUuid, parentSuffix);
 
   if (Context::getContext().verbose("project"))
     Context::getContext().footnote(onProjectChange(task));

@@ -79,6 +79,8 @@
 #include <CmdStats.h>
 #include <CmdStop.h>
 #include <CmdSummary.h>
+#include <CmdTree.h>
+#include <CmdPlan.h>
 #include <CmdTags.h>
 #include <CmdTimesheet.h>
 #include <CmdUDAs.h>
@@ -222,6 +224,10 @@ void Command::factory(std::map<std::string, Command*>& all) {
   all[c->keyword()] = c;
   c = new CmdTimesheet();
   all[c->keyword()] = c;
+  c = new CmdTree();
+  all[c->keyword()] = c;
+  c = new CmdPlan();
+  all[c->keyword()] = c;
   c = new CmdUDAs();
   all[c->keyword()] = c;
   c = new CmdUndo();
@@ -290,7 +296,6 @@ Command::Command()
       _displays_id(true),
       _needs_confirm(false),
       _needs_gc(true),
-      _needs_recur_update(false),
       _uses_context(false),
       _accepts_filter(false),
       _accepts_modifications(false),
@@ -317,9 +322,6 @@ bool Command::displays_id() const { return _displays_id; }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool Command::needs_gc() const { return _needs_gc; }
-
-////////////////////////////////////////////////////////////////////////////////
-bool Command::needs_recur_update() const { return _needs_recur_update; }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool Command::uses_context() const { return _uses_context; }

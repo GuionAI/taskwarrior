@@ -24,45 +24,32 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <cmake.h>
-// cmake.h include header must come first
+#ifndef INCLUDED_CMDPLAN
+#define INCLUDED_CMDPLAN
 
-#include <ColTemplate.h>
-#include <format.h>
+#include <Command.h>
+#include <Task.h>
 
-////////////////////////////////////////////////////////////////////////////////
-ColumnTemplate::ColumnTemplate() {
-  _name = "template";
-  _style = "long";
-  _label = "Template task";
-  _modifiable = false;
-  _styles = {"long", "short"};
-  _examples = {"f30cb9c3-3fc0-483f-bfb2-3bf134f00694", "f30cb9c3"};
-}
+#include <string>
+#include <vector>
 
-////////////////////////////////////////////////////////////////////////////////
-// Set the minimum and maximum widths for the value.
-void ColumnTemplate::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
-  minimum = maximum = 0;
-  if (task.has(_name)) {
-    if (_style == "default" || _style == "long")
-      minimum = maximum = 36;
-    else if (_style == "short")
-      minimum = maximum = 8;
-  }
-}
+struct MarkdownNode {
+  int depth;             // 1 = direct child, 2 = grandchild, etc.
+  std::string title;
+  std::string annotation;
+};
 
-////////////////////////////////////////////////////////////////////////////////
-void ColumnTemplate::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
-  if (task.has(_name)) {
-    // f30cb9c3-3fc0-483f-bfb2-3bf134f00694  default
-    // f30cb9c3                              short
-    if (_style == "default" || _style == "long")
-      renderStringLeft(lines, width, color, task.get(_name));
+class CmdPlan : public Command {
+ public:
+  CmdPlan();
+  int execute(std::string&);
 
-    else if (_style == "short")
-      renderStringLeft(lines, width, color, task.get(_name).substr(0, 8));
-  }
-}
+ private:
+  std::vector<MarkdownNode> parseMarkdown(const std::string& input);
+  void createSubtasks(const std::string& parentUuid, const std::vector<MarkdownNode>& nodes,
+                      std::string& output);
+  void renderSubtree(std::string& output, const std::string& parentUuid, int indent);
+};
 
+#endif
 ////////////////////////////////////////////////////////////////////////////////

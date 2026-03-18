@@ -34,7 +34,6 @@
 #include <feedback.h>
 #include <format.h>
 #include <nag.h>
-#include <recur.h>
 #include <util.h>
 
 #include <iostream>
@@ -47,7 +46,6 @@ CmdDone::CmdDone() {
   _read_only = false;
   _displays_id = false;
   _needs_gc = false;
-  _needs_recur_update = false;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = true;
@@ -97,7 +95,6 @@ int CmdDone::execute(std::string&) {
       }
 
       if (permission(before.diff(task) + question, filtered.size())) {
-        updateRecurrenceMask(task);
         Context::getContext().tdb2.modify(task);
         ++count;
         feedback_affected("Completed task {1} '{2}'.", task);
@@ -105,6 +102,17 @@ int CmdDone::execute(std::string&) {
         dependencyChainOnComplete(task);
         if (Context::getContext().verbose("project"))
           projectChanges[task.get("project")] = onProjectChange(task);
+
+        // Auto-complete all pending/waiting descendants (no prompt).
+        auto desc = Context::getContext().tdb2.descendants(task.get("uuid"));
+        for (auto& d : desc) {
+          if (d.getStatus() == Task::pending || d.getStatus() == Task::waiting) {
+            d.setStatus(Task::completed);
+            d.setAsNow("end");
+            Context::getContext().tdb2.modify(d);
+            ++count;
+          }
+        }
 
         // Save unmodified task for potential nagging later
         modified.push_back(before);

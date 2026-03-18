@@ -158,8 +158,6 @@ Task::status Task::textToStatus(const std::string& input) {
     return Task::completed;
   else if (input[0] == 'd')
     return Task::deleted;
-  else if (input[0] == 'r')
-    return Task::recurring;
   // for compatibility, parse `w` as pending; Task::getStatus will
   // apply the virtual waiting status if appropriate
   else if (input[0] == 'w')
@@ -172,8 +170,6 @@ Task::status Task::textToStatus(const std::string& input) {
 std::string Task::statusToText(Task::status s) {
   if (s == Task::pending)
     return "pending";
-  else if (s == Task::recurring)
-    return "recurring";
   else if (s == Task::waiting)
     return "waiting";
   else if (s == Task::completed)
@@ -494,7 +490,7 @@ bool Task::is_overdue() const {
   if (has("due")) {
     Task::status status = getStatus();
 
-    if (status != Task::completed && status != Task::deleted && status != Task::recurring) {
+    if (status != Task::completed && status != Task::deleted) {
       Task::dateState state = getDateState("due");
       if (state == dateEarlierToday || state == dateBeforeToday) return true;
     }
@@ -1145,13 +1141,9 @@ bool Task::hasTag(const std::string& tag) const {
 #endif
     if (tag == "ACTIVE") return has("start");
     if (tag == "SCHEDULED") return has("scheduled");
-    if (tag == "CHILD") return has("parent") || has("template");  // 2017-01-07: Deprecated in 2.6.0
-    if (tag == "INSTANCE") return has("template") || has("parent");
     if (tag == "UNTIL") return has("until");
     if (tag == "ANNOTATED") return hasAnnotations();
     if (tag == "TAGGED") return getTagCount() > 0;
-    if (tag == "PARENT") return has("mask") || has("last");  // 2017-01-07: Deprecated in 2.6.0
-    if (tag == "TEMPLATE") return has("last") || has("mask");
     if (tag == "WAITING") return is_waiting();
     if (tag == "PENDING") return getStatus() == Task::pending;
     if (tag == "COMPLETED") return getStatus() == Task::completed;
@@ -1426,9 +1418,6 @@ void Task::validate_add() {
   else if (get("description") == "")
     throw std::string("Cannot add a task that is blank.");
 
-  // Cannot have an old-style recur frequency with no due date - when would it recur?
-  if (has("recur") && (!has("due") || get("due") == ""))
-    throw std::string("A recurring task must also have a 'due' date.");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1458,35 +1447,13 @@ void Task::validate(bool applyDefault /* = true */) {
   } else
     set("uuid", uuid());
 
-  // TODO Obsolete remove for 3.0.0
-  // Recurring tasks get a special status.
-  if (status == Task::pending && has("due") && has("recur") &&
-      (!has("parent") || get("parent") == "") && (!has("template") || get("template") == "")) {
-    status = Task::recurring;
-  }
-  /*
-    // TODO Add for 3.0.0
-    if (status == Task::pending &&
-        has ("due")             &&
-        has ("recur")          &&
-        (! has ("template") || get ("template") == ""))
-    {
-      status = Task::recurring;
-    }
-  */
-
   // Tasks with a wait: date get a special status.
-  else if (status == Task::pending && has("wait") && get("wait") != "")
+  if (status == Task::pending && has("wait") && get("wait") != "")
     status = Task::waiting;
 
   // By default, tasks are pending.
   else if (!has("status") || get("status") == "")
     status = Task::pending;
-
-  // Default to 'periodic' type recurrence.
-  if (status == Task::recurring && (!has("rtype") || get("rtype") == "")) {
-    set("rtype", "periodic");
-  }
 
   // Store the derived status.
   setStatus(status);
@@ -1572,26 +1539,44 @@ void Task::validate(bool applyDefault /* = true */) {
   if (!has("description") || get("description") == "")
     Context::getContext().footnote(format("Warning: task has no description."));
 
-  // Cannot have an old-style recur frequency with no due date - when would it recur?
-  if (has("recur") && (!has("due") || get("due") == "")) {
-    Context::getContext().footnote(format("Warning: recurring task has no due date."));
-    remove("recur");
-  }
+#ifdef PRODUCT_TASKWARRIOR
+  // Validate parent field for tree hierarchy.
+  if (has("parent") && get("parent") != "") {
+    auto parent_uuid = get("parent");
+    auto my_uuid = get("uuid");
 
-  // Old-style recur durations must be valid.
-  if (has("recur")) {
-    std::string value = get("recur");
-    if (value != "") {
-      Duration p;
-      std::string::size_type i = 0;
-      if (!p.parse(value, i)) {
-        // TODO Ideal location to map unsupported old recurrence periods to supported values.
-        Context::getContext().footnote(
-            format("Warning: The recurrence value '{1}' is not valid.", value));
-        remove("recur");
-      }
+    // Validate parent UUID format before calling uuid_from_string (which panics on bad input).
+    {
+      Lexer lex(parent_uuid);
+      std::string token;
+      Lexer::Type type;
+      if (!lex.isUUID(token, type, true))
+        throw format("'parent' value '{1}' is not a valid UUID.", parent_uuid);
     }
+
+    // Prevent self-parenting.
+    if (parent_uuid == my_uuid) throw std::string("A task cannot be its own parent.");
+
+    // Parent must exist.
+    Task parent_task;
+    if (!Context::getContext().tdb2.get(parent_uuid, parent_task))
+      throw std::string("Parent task '" + parent_uuid + "' does not exist.");
+
+    // Prevent circular references via bridge TreeMap.
+    // UUID is always set at this point in validate() — the isUUID check above plus
+    // the uuid() call earlier in this function guarantee my_uuid is non-empty.
+    auto tm = Context::getContext().tdb2.tree_map();
+    if (tm->had_invalid_data())
+      Context::getContext().footnote(
+          "Warning: tree data may be corrupt; cycle check may be inaccurate.");
+    auto my_tc_uuid = tc::uuid_from_string(my_uuid);
+    auto parent_tc_uuid = tc::uuid_from_string(parent_uuid);
+    if (tm->is_ancestor(parent_tc_uuid, my_tc_uuid))
+      throw std::string("Circular reference detected: '" + parent_uuid +
+                        "' is already a descendant of this task.");
   }
+#endif
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1997,7 +1982,7 @@ void Task::modify(modType type, bool text_required /* = false */) {
             throw format("The '{1}' attribute does not allow a value of '{2}'.", name, value);
 
           // Delegate modification to the column object or their base classes.
-          if (name == "depends" || name == "tags" || name == "recur" || column->type() == "date" ||
+          if (name == "depends" || name == "tags" || column->type() == "date" ||
               column->type() == "duration" || column->type() == "numeric" ||
               column->type() == "string" || column->type() == "uuid") {
             column->modify(*this, value);
@@ -2036,9 +2021,19 @@ void Task::modify(modType type, bool text_required /* = false */) {
       }
 
       // Unknown args are accumulated as though they were WORDs.
+      // Exception: before:/after: pseudo-attributes are intercepted here.
       else {
-        if (text != "") text += ' ';
-        text += a.attribute("raw");
+        std::string raw = a.attribute("raw");
+        if (raw.substr(0, 7) == "before:" && raw.size() > 7) {
+          set("before", raw.substr(7));
+          mods = true;
+        } else if (raw.substr(0, 6) == "after:" && raw.size() > 6) {
+          set("after", raw.substr(6));
+          mods = true;
+        } else {
+          if (text != "") text += ' ';
+          text += raw;
+        }
       }
     }
   }
@@ -2071,6 +2066,63 @@ void Task::modify(modType type, bool text_required /* = false */) {
     }
   } else if (!mods && text_required)
     throw std::string("Additional text must be provided.");
+
+  // Handle before:/after: pseudo-attributes for sibling reordering.
+  // These are intercepted here so they don't need to be registered columns.
+  bool has_before = has("before");
+  bool has_after = has("after");
+  if (has_before || has_after) {
+    if (has_before && has_after)
+      throw std::string("Cannot specify both before: and after: simultaneously.");
+
+    std::string parent_uuid = get("parent");
+    bool at_root = parent_uuid.empty();
+
+    // Verify parent exists if this task has one (guards against dangling parent).
+    if (!at_root) {
+      Task parent_task;
+      if (!Context::getContext().tdb2.get(parent_uuid, parent_task))
+        throw std::string("Cannot reorder: parent task '" + parent_uuid + "' does not exist.");
+    }
+
+    auto tm = Context::getContext().tdb2.tree_map();
+    static constexpr const char* TC_NIL_UUID = "00000000-0000-0000-0000-000000000000";
+    tc::Uuid parent_tc =
+        at_root ? tc::uuid_from_string(TC_NIL_UUID) : tc::uuid_from_string(parent_uuid);
+    tc::Uuid self_tc = tc::uuid_from_string(get("uuid"));
+    auto siblings = tm->sibling_positions(parent_tc, at_root, self_tc, true);
+
+    std::string target_uuid = has_after ? get("after") : get("before");
+    remove(has_after ? "after" : "before");
+
+    std::string target_pos, neighbor_pos;
+    bool found = false;
+    for (size_t i = 0; i < siblings.size(); ++i) {
+      if (static_cast<std::string>(siblings[i].uuid.to_string()) == target_uuid) {
+        found = true;
+        target_pos = static_cast<std::string>(siblings[i].value);
+        if (has_after && i + 1 < siblings.size())
+          neighbor_pos = static_cast<std::string>(siblings[i + 1].value);
+        else if (has_before && i > 0)
+          neighbor_pos = static_cast<std::string>(siblings[i - 1].value);
+        break;
+      }
+    }
+    if (!found)
+      throw format("Task '{1}' is not a sibling of this task.", target_uuid.substr(0, 8));
+
+    // Use append/prepend when at an edge (neighbor_pos is empty), between otherwise.
+    std::string new_pos;
+    if (has_after)
+      new_pos = neighbor_pos.empty()
+                    ? static_cast<std::string>(tc::tc_append_position(target_pos))
+                    : static_cast<std::string>(tc::tc_between_position(target_pos, neighbor_pos));
+    else
+      new_pos = neighbor_pos.empty()
+                    ? static_cast<std::string>(tc::tc_prepend_position(target_pos))
+                    : static_cast<std::string>(tc::tc_between_position(neighbor_pos, target_pos));
+    set("position", new_pos);
+  }
 
   // Modifying completed/deleted tasks generates a message, if the modification
   // does not change status.
