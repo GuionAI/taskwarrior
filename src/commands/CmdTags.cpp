@@ -44,7 +44,6 @@ CmdTags::CmdTags() {
   _description = "Shows a list of all tags used";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -134,7 +133,6 @@ CmdCompletionTags::CmdCompletionTags() {
   _description = "Shows only a list of all tags used, for autocompletion purposes";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;

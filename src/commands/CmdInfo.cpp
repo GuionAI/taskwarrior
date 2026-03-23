@@ -58,7 +58,6 @@ CmdInfo::CmdInfo() {
   //
   // Once the test suite is completely modified, this can be corrected.
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -105,7 +104,7 @@ int CmdInfo::execute(std::string& output) {
     // id
     auto row = view.addRow();
     view.set(row, 0, "ID");
-    view.set(row, 1, (task.id ? format(task.id) : "-"));
+    view.set(row, 1, (!task.id.empty() ? task.id : "-"));
 
     std::string status = Lexer::ucFirst(Task::statusToText(task.getStatus()));
 

@@ -46,7 +46,6 @@ CmdPlan::CmdPlan() {
   _description = "Creates subtasks from markdown headings read from stdin";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _accepts_filter = true;
   _accepts_modifications = false;
   _accepts_miscellaneous = true;

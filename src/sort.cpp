@@ -118,8 +118,6 @@ static bool sort_compare(int left, int right) {
   bool ascending;
   bool breakIndicator;
   Column* column;
-  int left_number;
-  int right_number;
   float left_real;
   float right_real;
 
@@ -153,14 +151,14 @@ static bool sort_compare(int left, int right) {
       return ascending ? (left_real < right_real) : (left_real > right_real);
     }
 
-    // Number.
+    // ID (8-char hex UUID prefix — sort lexicographically).
     else if (field == "id") {
-      left_number = (*global_data)[left].id;
-      right_number = (*global_data)[right].id;
+      auto left_id = (*global_data)[left].id;
+      auto right_id = (*global_data)[right].id;
 
-      if (left_number == right_number) continue;
+      if (left_id == right_id) continue;
 
-      return ascending ? (left_number < right_number) : (left_number > right_number);
+      return ascending ? (left_id < right_id) : (left_id > right_id);
     }
 
     // String.
@@ -204,13 +202,13 @@ static bool sort_compare(int left, int right) {
 
       if (left_deps.size() > 0 && right_deps.size() == 0) return !ascending;
 
-      // Sort on the first dependency.
-      left_number = Context::getContext().tdb2.id(left_deps[0]);
-      right_number = Context::getContext().tdb2.id(right_deps[0]);
+      // Sort on the first dependency UUID (lexicographic — stable sort).
+      auto left_dep_uuid = left_deps[0];
+      auto right_dep_uuid = right_deps[0];
 
-      if (left_number == right_number) continue;
+      if (left_dep_uuid == right_dep_uuid) continue;
 
-      return ascending ? (left_number < right_number) : (left_number > right_number);
+      return ascending ? (left_dep_uuid < right_dep_uuid) : (left_dep_uuid > right_dep_uuid);
     }
 
     // Duration.

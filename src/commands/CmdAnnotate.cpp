@@ -43,7 +43,6 @@ CmdAnnotate::CmdAnnotate() {
   _description = "Adds an annotation to an existing task";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = true;

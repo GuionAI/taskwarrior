@@ -43,7 +43,6 @@ CmdColumns::CmdColumns() {
   _description = "All supported columns and formatting styles";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;
@@ -117,7 +116,6 @@ CmdCompletionColumns::CmdCompletionColumns() {
   _description = "Displays only a list of supported columns";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

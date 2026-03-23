@@ -39,7 +39,6 @@ CmdLog::CmdLog() {
   _description = "Adds a new task that is already completed";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = true;
   _accepts_filter = false;
   _accepts_modifications = true;

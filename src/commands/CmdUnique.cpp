@@ -42,7 +42,6 @@ CmdUnique::CmdUnique() {
   _description = "Generates lists of unique attribute values";
   _read_only = true;
   _displays_id = true;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -77,7 +76,7 @@ int CmdUnique::execute(std::string& output) {
       values.insert(task.get(canonical));
     } else if (canonical == "id" && task.getStatus() != Task::deleted &&
                task.getStatus() != Task::completed) {
-      values.insert(format(task.id));
+      values.insert(task.id);
     }
   }
 

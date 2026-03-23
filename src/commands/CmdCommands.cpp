@@ -44,7 +44,6 @@ CmdCommands::CmdCommands() {
   _description = "Generates a list of all commands, with behavior details";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;
@@ -60,7 +59,6 @@ int CmdCommands::execute(std::string& output) {
   view.add("Category");
   view.add("R/W", false);
   view.add("ID", false);
-  view.add("GC", false);
   view.add("Context", false);
   view.add("Filter", false);
   view.add("Mods", false);
@@ -83,17 +81,15 @@ int CmdCommands::execute(std::string& output) {
 
     if (command.second->displays_id()) view.set(row, 3, "ID");
 
-    if (command.second->needs_gc()) view.set(row, 4, "GC");
+    if (command.second->uses_context()) view.set(row, 4, "Ctxt");
 
-    if (command.second->uses_context()) view.set(row, 5, "Ctxt");
+    if (command.second->accepts_filter()) view.set(row, 5, "Filt");
 
-    if (command.second->accepts_filter()) view.set(row, 6, "Filt");
+    if (command.second->accepts_modifications()) view.set(row, 6, "Mods");
 
-    if (command.second->accepts_modifications()) view.set(row, 7, "Mods");
+    if (command.second->accepts_miscellaneous()) view.set(row, 7, "Misc");
 
-    if (command.second->accepts_miscellaneous()) view.set(row, 8, "Misc");
-
-    view.set(row, 9, command.second->description());
+    view.set(row, 8, command.second->description());
   }
 
   output = optionalBlankLine() + view.render() + optionalBlankLine() + '\n';
@@ -108,7 +104,6 @@ CmdCompletionCommands::CmdCompletionCommands() {
   _description = "Generates a list of all commands, for autocompletion purposes";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;
@@ -139,7 +134,6 @@ CmdZshCommands::CmdZshCommands() {
   _description = "Generates a list of all commands, for zsh autocompletion purposes";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

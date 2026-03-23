@@ -36,8 +36,6 @@ class CmdIDs : public Command {
   CmdIDs();
   int execute(std::string&);
 
- private:
-  std::string compressIds(const std::vector<int>&);
 };
 
 class CmdCompletionIds : public Command {

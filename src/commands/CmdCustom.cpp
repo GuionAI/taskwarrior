@@ -54,7 +54,6 @@ CmdCustom::CmdCustom(const std::string& keyword, const std::string& usage,
   _description = description;
   _read_only = true;
   _displays_id = true;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;

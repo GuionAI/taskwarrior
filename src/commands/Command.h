@@ -60,7 +60,6 @@ class Command {
   std::string description() const;
   bool read_only() const;
   bool displays_id() const;
-  bool needs_gc() const;
   virtual bool uses_context() const;
   bool accepts_filter() const;
   bool accepts_modifications() const;
@@ -79,7 +78,6 @@ class Command {
   bool _read_only;
   bool _displays_id;
   bool _needs_confirm;
-  bool _needs_gc;
   bool _uses_context;
   bool _accepts_filter;
   bool _accepts_modifications;

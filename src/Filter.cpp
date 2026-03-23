@@ -170,7 +170,6 @@ bool Filter::pendingOnly() const {
   int countStatus = 0;
   int countPending = 0;
   int countWaiting = 0;
-  int countId = (int)Context::getContext().cli2._id_ranges.size();
   int countUUID = (int)Context::getContext().cli2._uuid_list.size();
   int countOr = 0;
   int countXor = 0;
@@ -208,8 +207,6 @@ bool Filter::pendingOnly() const {
 
     return true;
   }
-
-  if (countId) return true;
 
   return false;
 }

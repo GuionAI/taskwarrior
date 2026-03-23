@@ -112,7 +112,6 @@ class CLI2 {
   std::vector<A2> _original_args{};
   std::vector<A2> _args{};
 
-  std::vector<std::pair<std::string, std::string>> _id_ranges{};
   std::vector<std::string> _uuid_list{};
   std::string _command{""};
   bool _context_added{false};

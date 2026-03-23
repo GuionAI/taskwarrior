@@ -552,7 +552,6 @@ void CLI2::addContext(bool readable, bool writeable) {
 // sugar as necessary.
 void CLI2::prepareFilter() {
   // Clear and re-populate.
-  _id_ranges.clear();
   _uuid_list.clear();
   _context_added = false;
 
@@ -689,18 +688,6 @@ const std::string CLI2::dump(const std::string& title) const {
   if (_args.size()) {
     out << "  _args\n";
     for (const auto& a : _args) out << "    " << a.dump() << '\n';
-  }
-
-  if (_id_ranges.size()) {
-    out << "  _id_ranges\n    ";
-    for (const auto& range : _id_ranges) {
-      if (range.first != range.second)
-        out << colorArgs.colorize(range.first + "-" + range.second) << ' ';
-      else
-        out << colorArgs.colorize(range.first) << ' ';
-    }
-
-    out << '\n';
   }
 
   if (_uuid_list.size()) {
@@ -984,7 +971,6 @@ bool CLI2::findCommand() {
     Command* command = Context::getContext().commands[canonical];
     if (command->read_only()) a.tag("READONLY");
     if (command->displays_id()) a.tag("SHOWSID");
-    if (command->needs_gc()) a.tag("RUNSGC");
     if (command->uses_context()) a.tag("USESCONTEXT");
     if (command->accepts_filter()) a.tag("ALLOWSFILTER");
     if (command->accepts_modifications()) a.tag("ALLOWSMODIFICATIONS");
@@ -1264,14 +1250,21 @@ void CLI2::desugarFilterPatterns() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// An ID sequence can be:
+// Finds 8-char hex UUID prefix arguments on the filter and places them in
+// _uuid_list. Numeric IDs are no longer supported; all task identification
+// uses UUID prefixes (8 hex characters).
 //
-//   a single ID:          1
-//   a list of IDs:        1,3,5
-//   a list of IDs:        1 3 5
-//   a range:              5-10
-//   or a combination:     1,3,5-10 12
+// Recognized forms:
+//   a single prefix:        a1b2c3d4
+//   a comma-separated list: a1b2c3d4,e5f6a7b8
 //
+static bool looksLikeHexPrefix(const std::string& s) {
+  if (s.empty()) return false;
+  for (char c : s)
+    if (!std::isxdigit(static_cast<unsigned char>(c))) return false;
+  return true;
+}
+
 void CLI2::findIDs() {
   bool changes = false;
 
@@ -1283,86 +1276,61 @@ void CLI2::findIDs() {
       if (a.hasTag("FILTER")) {
         ++filterCount;
 
-        if (a._lextype == Lexer::Type::number) {
-          // Skip any number that was preceded by an operator.
-          if (!previousFilterArgWasAnOperator) {
-            changes = true;
-            std::string number = a.attribute("raw");
-            _id_ranges.emplace_back(number, number);
-          }
-        } else if (a._lextype == Lexer::Type::set) {
-          // Split the ID list into elements.
-          auto elements = split(a.attribute("raw"), ',');
+        std::string raw = a.attribute("raw");
 
+        // A hex-only word token is treated as a UUID prefix.
+        if (a._lextype == Lexer::Type::word && !previousFilterArgWasAnOperator &&
+            looksLikeHexPrefix(raw)) {
+          changes = true;
+          _uuid_list.push_back(raw);
+        } else if (a._lextype == Lexer::Type::set) {
+          // Comma-separated list — each element may be a hex prefix.
+          auto elements = split(raw, ',');
           for (auto& element : elements) {
-            changes = true;
-            auto hyphen = element.find('-');
-            if (hyphen != std::string::npos)
-              _id_ranges.emplace_back(element.substr(0, hyphen), element.substr(hyphen + 1));
-            else
-              _id_ranges.emplace_back(element, element);
+            if (looksLikeHexPrefix(element)) {
+              changes = true;
+              _uuid_list.push_back(element);
+            }
           }
         }
 
-        std::string raw = a.attribute("raw");
         previousFilterArgWasAnOperator =
             (a._lextype == Lexer::Type::op && raw != "(" && raw != ")") ? true : false;
       }
     }
 
-    // If no IDs were found, and no filter was specified, look for number/set
-    // listed as a MODIFICATION.
-    std::string command = getCommand();
+    // If nothing was found in FILTER, check MODIFICATION args (e.g. `task a1b2c3d4 done`).
+    if (!_uuid_list.size() && filterCount == 0) {
+      std::string command = getCommand();
+      if (command != "add" && command != "log") {
+        for (auto& a : _args) {
+          if (a.hasTag("MODIFICATION")) {
+            std::string raw = a.attribute("raw");
 
-    if (!_id_ranges.size() && filterCount == 0 && command != "add" && command != "log") {
-      for (auto& a : _args) {
-        if (a.hasTag("MODIFICATION")) {
-          std::string raw = a.attribute("raw");
-
-          // For a number to be an ID, it must not contain any sign or floating
-          // point elements.
-          if (a._lextype == Lexer::Type::number && raw.find('.') == std::string::npos &&
-              raw.find('e') == std::string::npos && raw.find('-') == std::string::npos) {
-            changes = true;
-            a.unTag("MODIFICATION");
-            a.tag("FILTER");
-            _id_ranges.emplace_back(raw, raw);
-          } else if (a._lextype == Lexer::Type::set) {
-            a.unTag("MODIFICATION");
-            a.tag("FILTER");
-
-            // Split the ID list into elements.
-            auto elements = split(raw, ',');
-
-            for (const auto& element : elements) {
+            if (a._lextype == Lexer::Type::word && looksLikeHexPrefix(raw)) {
               changes = true;
-              auto hyphen = element.find('-');
-              if (hyphen != std::string::npos)
-                _id_ranges.emplace_back(element.substr(0, hyphen), element.substr(hyphen + 1));
-              else
-                _id_ranges.emplace_back(element, element);
+              a.unTag("MODIFICATION");
+              a.tag("FILTER");
+              _uuid_list.push_back(raw);
+            } else if (a._lextype == Lexer::Type::set) {
+              auto elements = split(raw, ',');
+              bool any = false;
+              for (auto& element : elements) {
+                if (looksLikeHexPrefix(element)) {
+                  _uuid_list.push_back(element);
+                  any = true;
+                }
+              }
+              if (any) {
+                changes = true;
+                a.unTag("MODIFICATION");
+                a.tag("FILTER");
+              }
             }
           }
         }
       }
     }
-  }
-
-  // Sugar-free.
-  else {
-    std::vector<A2> reconstructed;
-    for (const auto& a : _args) {
-      if (a.hasTag("FILTER") && a._lextype == Lexer::Type::number) {
-        changes = true;
-        A2 pair("id:" + a.attribute("raw"), Lexer::Type::pair);
-        pair.tag("FILTER");
-        pair.decompose();
-        reconstructed.push_back(pair);
-      } else
-        reconstructed.push_back(a);
-    }
-
-    if (changes) _args = reconstructed;
   }
 
   if (changes)
@@ -1418,37 +1386,24 @@ void CLI2::findUUIDs() {
 
 ////////////////////////////////////////////////////////////////////////////////
 void CLI2::insertIDExpr() {
-  // Skip completely if no ID/UUID was found. This is because below, '(' and ')'
-  // are inserted regardless of list size.
-  if (!_id_ranges.size() && !_uuid_list.size()) return;
+  // Skip completely if no UUID prefix was found.
+  if (!_uuid_list.size()) return;
 
-  // Find the *first* occurence of lexer type set/number/uuid, and replace it
-  // with a synthesized expression. All other occurences are eaten.
+  // Find the *first* occurrence of a lexer type set/number/uuid/word in FILTER,
+  // and replace it with a synthesized expression. All other occurrences are eaten.
+  //
+  // This converts:  a1b2c3d4 e5f6a7b8
+  // into:           ( ( uuid = "a1b2c3d4" ) or ( uuid = "e5f6a7b8" ) )
   bool changes = false;
   bool foundID = false;
   std::vector<A2> reconstructed;
   for (const auto& a : _args) {
     if ((a._lextype == Lexer::Type::set || a._lextype == Lexer::Type::number ||
-         a._lextype == Lexer::Type::uuid) &&
+         a._lextype == Lexer::Type::uuid || a._lextype == Lexer::Type::word) &&
         a.hasTag("FILTER")) {
       if (!foundID) {
         foundID = true;
         changes = true;
-
-        // Construct a single sequence that represents all _id_ranges and
-        // _uuid_list in one clause. This is essentially converting this:
-        //
-        //   1,2-3 uuid,uuid uuid 4
-        //
-        // into:
-        //
-        //   (
-        //        ( id == 1 )
-        //     or ( ( id >= 2 ) and ( id <= 3 ) )
-        //     or ( id == 4 )
-        //     or ( uuid = $UUID )
-        //     or ( uuid = $UUID )
-        //   )
 
         // Building block operators.
         A2 openParen("(", Lexer::Type::op);
@@ -1457,73 +1412,15 @@ void CLI2::insertIDExpr() {
         closeParen.tag("FILTER");
         A2 opOr("or", Lexer::Type::op);
         opOr.tag("FILTER");
-        A2 opAnd("and", Lexer::Type::op);
-        opAnd.tag("FILTER");
         A2 opSimilar("=", Lexer::Type::op);
         opSimilar.tag("FILTER");
-        A2 opEqual("==", Lexer::Type::op);
-        opEqual.tag("FILTER");
-        A2 opGTE(">=", Lexer::Type::op);
-        opGTE.tag("FILTER");
-        A2 opLTE("<=", Lexer::Type::op);
-        opLTE.tag("FILTER");
-
-        // Building block attributes.
-        A2 argID("id", Lexer::Type::dom);
-        argID.tag("FILTER");
 
         A2 argUUID("uuid", Lexer::Type::dom);
         argUUID.tag("FILTER");
 
         reconstructed.push_back(openParen);
 
-        // Add all ID ranges.
-        for (auto r = _id_ranges.begin(); r != _id_ranges.end(); ++r) {
-          if (r != _id_ranges.begin()) reconstructed.push_back(opOr);
-
-          if (r->first == r->second) {
-            reconstructed.push_back(openParen);
-            reconstructed.push_back(argID);
-            reconstructed.push_back(opEqual);
-
-            A2 value(r->first, Lexer::Type::number);
-            value.tag("FILTER");
-            reconstructed.push_back(value);
-
-            reconstructed.push_back(closeParen);
-          } else {
-            bool ascending = true;
-            int low = strtol(r->first.c_str(), nullptr, 10);
-            int high = strtol(r->second.c_str(), nullptr, 10);
-            if (low <= high)
-              ascending = true;
-            else
-              ascending = false;
-
-            reconstructed.push_back(openParen);
-            reconstructed.push_back(argID);
-            reconstructed.push_back(opGTE);
-
-            A2 startValue((ascending ? r->first : r->second), Lexer::Type::number);
-            startValue.tag("FILTER");
-            reconstructed.push_back(startValue);
-
-            reconstructed.push_back(opAnd);
-            reconstructed.push_back(argID);
-            reconstructed.push_back(opLTE);
-
-            A2 endValue((ascending ? r->second : r->first), Lexer::Type::number);
-            endValue.tag("FILTER");
-            reconstructed.push_back(endValue);
-
-            reconstructed.push_back(closeParen);
-          }
-        }
-
-        // Combine the ID and UUID sections with 'or'.
-        if (_id_ranges.size() && _uuid_list.size()) reconstructed.push_back(opOr);
-
-        // Add all UUID list items.
+        // Add all UUID prefix items.
         for (auto u = _uuid_list.begin(); u != _uuid_list.end(); ++u) {
           if (u != _uuid_list.begin()) reconstructed.push_back(opOr);
 
@@ -1541,7 +1438,7 @@ void CLI2::insertIDExpr() {
         reconstructed.push_back(closeParen);
       }
 
-      // No 'else' because all set/number/uuid args but the first are removed.
+      // No 'else' because all matched args but the first are removed.
     } else
       reconstructed.push_back(a);
   }

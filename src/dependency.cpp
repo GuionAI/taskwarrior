@@ -137,11 +137,11 @@ void dependencyChainOnComplete(Task& task) {
       if (!Context::getContext().config.getBoolean("dependency.confirmation") ||
           confirm("Would you like the dependency chain fixed?")) {
         // Repair the chain - everything in blocked should now depend on
-        // everything in blocking, instead of task.id.
+        // everything in blocking, instead of the deleted task.
         for (auto& left : blocked) {
-          left.removeDependency(task.id);
+          left.removeDependency(task.get("uuid"));
 
-          for (const auto& right : blocking) left.addDependency(right.id);
+          for (const auto& right : blocking) left.addDependency(right.get("uuid"));
         }
 
         // Now update TDB2, now that the updates have all occurred.

@@ -47,7 +47,6 @@ CmdStats::CmdStats() {
   _description = "Shows task database statistics";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;

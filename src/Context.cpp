@@ -778,11 +778,6 @@ int Context::dispatch(std::string& out) {
     Command* c = commands[command];
     assert(c);
 
-    // The command know whether they need a GC or recurrence update.
-    if (c->needs_gc()) {
-      tdb2.gc();
-    }
-
     // This is something that is only needed for write commands with no other
     // filter processing.
     if (c->accepts_modifications() && !c->accepts_filter()) {

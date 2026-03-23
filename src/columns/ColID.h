@@ -27,9 +27,9 @@
 #ifndef INCLUDED_COLID
 #define INCLUDED_COLID
 
-#include <ColTypeNumeric.h>
+#include <ColTypeString.h>
 
-class ColumnID : public ColumnTypeNumeric {
+class ColumnID : public ColumnTypeString {
  public:
   ColumnID();
   void measure(Task&, unsigned int&, unsigned int&);

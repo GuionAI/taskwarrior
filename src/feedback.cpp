@@ -151,10 +151,9 @@ void feedback_unblocked(const Task& task) {
     for (auto& i : blocked) {
       auto blocking = i.getDependencyTasks();
       if (blocking.size() == 0) {
-        if (i.id)
+        if (!i.id.empty())
           std::cout << format("Unblocked {1} '{2}'.", i.id, i.get("description")) << "\n";
         else {
-          std::string uuid = i.get("uuid");
           std::cout << format("Unblocked {1} '{2}'.", i.get("uuid"), i.get("description")) << "\n";
         }
       }

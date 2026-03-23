@@ -55,7 +55,6 @@ CmdNews::CmdNews() {
   _description = "Displays news about the recent releases";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

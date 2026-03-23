@@ -77,7 +77,7 @@ int TEST_NAME(int, char**) {
         "\"due\":\"1234567890\", "
         "\"tags\":\"one,two\""
         "}");
-    t1.id = 1;
+    t1.id = "a1b2c3d4";
     t.ok(true, "one");
     Task t2(
         "{"
@@ -88,7 +88,7 @@ int TEST_NAME(int, char**) {
         "\"recur\":\"monthly\", "
         "\"depends\":\"2a64f6e0-bf8e-430d-bf71-9ec3f0d9b661\""
         "}");
-    t2.id = 11;
+    t2.id = "f30cb9c3";
     t.ok(true, "two");
     Task t3(
         "{"
@@ -97,7 +97,7 @@ int TEST_NAME(int, char**) {
         "\"description\":\"Another description\", "
         "\"project\":\"Garden\""
         "}");
-    t3.id = 8;
+    t3.id = "c44cb9c3";
     t.ok(true, "three");
 
     std::vector<Task> data;

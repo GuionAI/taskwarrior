@@ -46,7 +46,6 @@ CmdTimesheet::CmdTimesheet() {
   _description = "Summary of completed and started tasks";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;

@@ -47,7 +47,6 @@ CmdCalendar::CmdCalendar() {
   _description = "Shows a calendar, with due tasks marked";
   _read_only = true;
   _displays_id = true;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

@@ -48,7 +48,6 @@ CmdContext::CmdContext() {
   _description = "Set and define contexts (default filters / modifications)";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;
@@ -410,7 +409,6 @@ CmdCompletionContext::CmdCompletionContext() {
   _description = "Lists all supported contexts, for completion purposes";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

@@ -63,7 +63,6 @@ CmdEdit::CmdEdit() {
   _description = "Launches an editor to modify a task directly";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -245,13 +244,13 @@ std::string CmdEdit::formatTask(Task task, const std::string& dateformat) {
     Task t;
     Context::getContext().tdb2.get(dependencies[i], t);
     if (t.getStatus() == Task::pending || t.getStatus() == Task::waiting)
-      allDeps << t.id;
+      allDeps << t.id;  // 8-char hex UUID prefix
     else
       allDeps << dependencies[i];
   }
 
   if (verbose)
-    before << "# Dependencies should be a comma-separated list of task IDs/UUIDs or ID ranges, "
+    before << "# Dependencies should be a comma-separated list of UUID prefixes or full UUIDs, "
               "with no spaces.\n";
 
   before << "  Dependencies:      " << allDeps.str() << '\n';
@@ -520,10 +519,7 @@ void CmdEdit::parseTask(Task& task, const std::string& after, const std::string&
 
   for (auto& dep : task.getDependencyUUIDs()) task.removeDependency(dep);
   for (auto& dep : dependencies) {
-    if (dep.length() >= 7)
-      task.addDependency(dep);
-    else
-      task.addDependency((int)strtol(dep.c_str(), nullptr, 10));
+    if (!dep.empty()) task.addDependency(dep);
   }
 
   // UDAs
