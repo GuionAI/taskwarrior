@@ -33,7 +33,12 @@
 #include <dependency.h>
 #include <feedback.h>
 #include <format.h>
+#include <recur.h>
 #include <shared.h>
+
+#define STRING_CMD_DELETE_TASK_R "Deleting recurring task {1} '{2}'."
+#define STRING_CMD_DELETE_CONFIRM_R \
+  "This is a recurring task.  Do you want to delete all pending recurrences of this same task?"
 
 #include <iostream>
 
@@ -80,12 +85,15 @@ int CmdDelete::execute(std::string&) {
       std::string question;
       question = format("Delete task {1} '{2}'?", task.identifier(true), task.get("description"));
 
+      // Save original status before marking deleted, needed for recurrence checks below.
+      auto originalStatus = task.getStatus();
       task.modify(Task::modAnnotate);
       task.setStatus(Task::deleted);
       if (!task.has("end")) task.setAsNow("end");
 
       if (permission(question, filtered.size())) {
         ++count;
+        updateRecurrenceMask(task);
         Context::getContext().tdb2.modify(task);
         feedback_affected("Deleting task {1} '{2}'.", task);
         feedback_unblocked(task);
@@ -93,21 +101,70 @@ int CmdDelete::execute(std::string&) {
         if (Context::getContext().verbose("project"))
           projectChanges[task.get("project")] = onProjectChange(task);
 
-        // Prompt to delete pending descendants.
-        auto desc = Context::getContext().tdb2.descendants(task.get("uuid"));
-        int pending_count = 0;
-        for (auto& d : desc)
-          if (d.getStatus() == Task::pending || d.getStatus() == Task::waiting) ++pending_count;
-        if (pending_count > 0) {
-          std::string child_question =
-              format("Task has {1} pending descendant(s). Delete them too?", pending_count);
-          if (permission(child_question, 1)) {
-            for (auto& d : desc) {
-              if (d.getStatus() != Task::deleted) {
-                d.setStatus(Task::deleted);
-                d.setAsNow("end");
-                Context::getContext().tdb2.modify(d);
-                ++count;
+        // Delete siblings (recurrence case).
+        if (task.has("parent")) {
+          if ((Context::getContext().config.get("recurrence.confirmation") == "prompt" &&
+               confirm(STRING_CMD_DELETE_CONFIRM_R)) ||
+              Context::getContext().config.getBoolean("recurrence.confirmation")) {
+            std::vector<Task> siblings = Context::getContext().tdb2.siblings(task);
+            for (auto& sibling : siblings) {
+              sibling.modify(Task::modAnnotate);
+              sibling.setStatus(Task::deleted);
+              if (!sibling.has("end")) sibling.setAsNow("end");
+
+              updateRecurrenceMask(sibling);
+              Context::getContext().tdb2.modify(sibling);
+              feedback_affected(STRING_CMD_DELETE_TASK_R, sibling);
+              feedback_unblocked(sibling);
+              ++count;
+            }
+
+            // Delete the parent
+            Task parent;
+            Context::getContext().tdb2.get(task.get("parent"), parent);
+            parent.setStatus(Task::deleted);
+            if (!parent.has("end")) parent.setAsNow("end");
+
+            Context::getContext().tdb2.modify(parent);
+          }
+        } else if (originalStatus == Task::recurring) {
+          // Recurring parent deleted — also delete all pending children.
+          auto children =
+              Context::getContext().tdb2.recurrence_children(task.get("uuid"));
+          if (!children.empty()) {
+            if ((Context::getContext().config.get("recurrence.confirmation") == "prompt" &&
+                 confirm(STRING_CMD_DELETE_CONFIRM_R)) ||
+                Context::getContext().config.getBoolean("recurrence.confirmation")) {
+              for (auto& child : children) {
+                if (child.getStatus() != Task::deleted) {
+                  child.setStatus(Task::deleted);
+                  if (!child.has("end")) child.setAsNow("end");
+                  updateRecurrenceMask(child);
+                  Context::getContext().tdb2.modify(child);
+                  feedback_affected(STRING_CMD_DELETE_TASK_R, child);
+                  feedback_unblocked(child);
+                  ++count;
+                }
+              }
+            }
+          }
+        } else {
+          // Prompt to delete pending tree descendants.
+          auto desc = Context::getContext().tdb2.descendants(task.get("uuid"));
+          int pending_count = 0;
+          for (auto& d : desc)
+            if (d.getStatus() == Task::pending || d.getStatus() == Task::waiting) ++pending_count;
+          if (pending_count > 0) {
+            std::string child_question =
+                format("Task has {1} pending descendant(s). Delete them too?", pending_count);
+            if (permission(child_question, 1)) {
+              for (auto& d : desc) {
+                if (d.getStatus() != Task::deleted) {
+                  d.setStatus(Task::deleted);
+                  d.setAsNow("end");
+                  Context::getContext().tdb2.modify(d);
+                  ++count;
+                }
               }
             }
           }

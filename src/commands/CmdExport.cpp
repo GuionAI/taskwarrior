@@ -47,6 +47,7 @@ CmdExport::CmdExport() {
   _accepts_modifications = false;
   _accepts_miscellaneous = true;
   _category = Command::Category::migration;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

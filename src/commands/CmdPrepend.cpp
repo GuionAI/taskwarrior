@@ -32,9 +32,13 @@
 #include <Filter.h>
 #include <feedback.h>
 #include <format.h>
+#include <recur.h>
 #include <shared.h>
 
 #include <iostream>
+
+#define STRING_CMD_PREPEND_RECUR \
+  "This is a recurring task.  Do you want to prepend to all pending recurrences of this same task?"
 
 ////////////////////////////////////////////////////////////////////////////////
 CmdPrepend::CmdPrepend() {
@@ -87,6 +91,21 @@ int CmdPrepend::execute(std::string&) {
       feedback_affected("Prepending to task {1} '{2}'.", task);
       if (Context::getContext().verbose("project"))
         projectChanges[task.get("project")] = onProjectChange(task, false);
+
+      // Propagate prepend to recurrence siblings.
+      if (task.has("parent")) {
+        if ((Context::getContext().config.get("recurrence.confirmation") == "prompt" &&
+             confirm(STRING_CMD_PREPEND_RECUR)) ||
+            Context::getContext().config.getBoolean("recurrence.confirmation")) {
+          auto siblings = Context::getContext().tdb2.siblings(task);
+          for (auto& sibling : siblings) {
+            sibling.modify(Task::modPrepend, true);
+            Context::getContext().tdb2.modify(sibling);
+            ++count;
+            feedback_affected("Prepending to task {1} '{2}'.", sibling);
+          }
+        }
+      }
 
     } else {
       std::cout << "Task not prepended.\n";

@@ -59,6 +59,7 @@ CmdCustom::CmdCustom(const std::string& keyword, const std::string& usage,
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Category::report;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

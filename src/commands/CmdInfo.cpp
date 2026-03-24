@@ -169,6 +169,55 @@ int CmdInfo::execute(std::string& output) {
       view.set(row, 1, task.get("parent_id"));
     }
 
+    // recur
+    if (task.has("recur")) {
+      row = view.addRow();
+      view.set(row, 0, "Recurrence");
+      view.set(row, 1, task.get("recur"));
+    }
+
+    // parent (recurrence template link)
+    if (task.has("parent")) {
+      row = view.addRow();
+      view.set(row, 0, "Recurrence parent");
+      view.set(row, 1, task.get("parent"));
+    }
+
+    // mask
+    if (task.has("mask")) {
+      row = view.addRow();
+      view.set(row, 0, "Mask");
+      view.set(row, 1, task.get("mask"));
+    }
+
+    // imask
+    if (task.has("imask")) {
+      row = view.addRow();
+      view.set(row, 0, "Mask Index");
+      view.set(row, 1, task.get("imask"));
+    }
+
+    // template
+    if (task.has("template")) {
+      row = view.addRow();
+      view.set(row, 0, "Template task");
+      view.set(row, 1, task.get("template"));
+    }
+
+    // last
+    if (task.has("last")) {
+      row = view.addRow();
+      view.set(row, 0, "Last instance");
+      view.set(row, 1, task.get("last"));
+    }
+
+    // rtype
+    if (task.has("rtype")) {
+      row = view.addRow();
+      view.set(row, 0, "Recurrence type");
+      view.set(row, 1, task.get("rtype"));
+    }
+
     // entry
     if (task.has("entry") && task.get_date("entry")) {
       row = view.addRow();

@@ -44,6 +44,7 @@ CmdExec::CmdExec() {
   _accepts_modifications = false;
   _accepts_miscellaneous = true;
   _category = Command::Category::misc;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -299,7 +299,7 @@ bool getDOM(const std::string& name, const Task* task, Variant& value) {
           value = Variant("");
         else
           value = Variant(numeric, Variant::type_date);
-      } else if (column->type() == "duration") {
+      } else if (column->type() == "duration" || canonical == "recur") {
         auto period = ref->get(canonical);
 
         Duration iso;

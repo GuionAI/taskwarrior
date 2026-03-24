@@ -770,6 +770,7 @@ CmdBurndownMonthly::CmdBurndownMonthly() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::graphs;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -801,6 +802,7 @@ CmdBurndownWeekly::CmdBurndownWeekly() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::graphs;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -832,6 +834,7 @@ CmdBurndownDaily::CmdBurndownDaily() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::graphs;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

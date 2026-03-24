@@ -27,80 +27,62 @@
 #include <cmake.h>
 // cmake.h include header must come first
 
-#include <ColStatus.h>
+#include <ColRType.h>
+#include <Context.h>
 #include <format.h>
-#include <utf8.h>
+#include <shared.h>
+
+#include <cctype>
 
 ////////////////////////////////////////////////////////////////////////////////
-ColumnStatus::ColumnStatus() {
-  _name = "status";
-  _style = "long";
-  _label = "Status";
-  _styles = {"long", "short"};
-  _examples = {"Pending", "P"};
+ColumnRType::ColumnRType() {
+  _name = "rtype";
+  _style = "default";
+  _label = "Recurrence type";
+  _modifiable = false;
+  _styles = {"default", "indicator"};
+  _examples = {"periodic", "chained"};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Overriden so that style <----> label are linked.
 // Note that you can not determine which gets called first.
-void ColumnStatus::setStyle(const std::string& value) {
+void ColumnRType::setStyle(const std::string& value) {
   Column::setStyle(value);
 
-  if (_style == "short" && _label == "Status") _label = "St";
+  if (_style == "indicator" && _label == "Recurrence type")
+    _label = _label.substr(0, Context::getContext().config.get("rtype.indicator").length());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Set the minimum and maximum widths for the value.
-void ColumnStatus::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
-  Task::status status = task.getStatus();
-
-  if (_style == "default" || _style == "long") {
-    if (status == Task::pending)
-      minimum = maximum = utf8_width("Pending");
-    else if (status == Task::deleted)
-      minimum = maximum = utf8_width("Deleted");
-    else if (status == Task::waiting)
-      minimum = maximum = utf8_width("Waiting");
-    else if (status == Task::recurring)
-      minimum = maximum = utf8_width("Recurring");
-    else if (status == Task::completed)
-      minimum = maximum = utf8_width("Completed");
-  } else if (_style == "short")
-    minimum = maximum = 1;
+void ColumnRType::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
+  minimum = maximum = 0;
+  if (task.has(_name)) {
+    if (_style == "default")
+      minimum = maximum = task.get(_name).length();
+    else if (_style == "indicator")
+      minimum = maximum = 1;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void ColumnStatus::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
-  Task::status status = task.getStatus();
-  std::string value;
+void ColumnRType::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
+  if (task.has(_name)) {
+    if (_style == "default")
+      renderStringRight(lines, width, color, task.get(_name));
 
-  if (_style == "default" || _style == "long") {
-    if (status == Task::pending)
-      value = "Pending";
-    else if (status == Task::completed)
-      value = "Completed";
-    else if (status == Task::deleted)
-      value = "Deleted";
-    else if (status == Task::waiting)
-      value = "Waiting";
-    else if (status == Task::recurring)
-      value = "Recurring";
+    else if (_style == "indicator") {
+      std::string value{" "};
+      value[0] = toupper(task.get(_name)[0]);
+      renderStringRight(lines, width, color, value);
+    }
   }
+}
 
-  else if (_style == "short") {
-    if (status == Task::pending)
-      value = "P";
-    else if (status == Task::completed)
-      value = "C";
-    else if (status == Task::deleted)
-      value = "D";
-    else if (status == Task::waiting)
-      value = "W";
-    else if (status == Task::recurring)
-      value = "R";
-  }
-
-  renderStringLeft(lines, width, color, value);
+////////////////////////////////////////////////////////////////////////////////
+bool ColumnRType::validate(const std::string& input) const {
+  return input == "periodic" || input == "chained";
 }
 
 ////////////////////////////////////////////////////////////////////////////////

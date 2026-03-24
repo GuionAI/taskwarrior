@@ -61,6 +61,8 @@ class TDB2 {
   const std::vector<Task> children(const std::string& parent_uuid);
   const std::vector<Task> descendants(const std::string& parent_uuid);
   rust::Box<tc::TreeMapWrapper> tree_map();
+  const std::vector<Task> siblings(Task& task);
+  const std::vector<Task> recurrence_children(const std::string& parent_uuid);
 
   int num_local_changes();
   int num_reverts_possible();

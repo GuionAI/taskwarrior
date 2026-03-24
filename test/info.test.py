@@ -50,7 +50,6 @@ class TestInfoCommand(TestCase):
         code, out, err = self.t.runError("999 info")
         self.assertIn("No matches.", err)
 
-    @unittest.skip("Recurrence and Until not supported in PowerSync backend")
     def test_info_display(self):
         """Verify info command shows everything in the task"""
         pass

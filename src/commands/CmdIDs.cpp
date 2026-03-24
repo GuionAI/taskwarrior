@@ -49,6 +49,7 @@ CmdIDs::CmdIDs() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::metadata;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,6 +83,7 @@ CmdCompletionIds::CmdCompletionIds() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::internal;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,6 +117,7 @@ CmdZshCompletionIds::CmdZshCompletionIds() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::internal;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -148,6 +151,7 @@ CmdUUIDs::CmdUUIDs() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::metadata;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +184,7 @@ CmdCompletionUuids::CmdCompletionUuids() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::internal;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -212,6 +217,7 @@ CmdZshCompletionUuids::CmdZshCompletionUuids() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::internal;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

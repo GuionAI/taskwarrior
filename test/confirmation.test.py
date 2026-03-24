@@ -82,7 +82,6 @@ class TestBug1438(TestCase):
         """Executed before each test in the class"""
         self.t = Task()
 
-    @unittest.skip("Recurrence not supported in PowerSync backend")
     def test_recurring_tasks_shouldn_ask_for_confirmation(self):
         """1438: rc.confirmation=off still prompts while changing recurring tasks"""
         pass

@@ -51,6 +51,7 @@ CmdTimesheet::CmdTimesheet() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::report;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

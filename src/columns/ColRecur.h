@@ -24,24 +24,22 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#ifndef INCLUDED_COLRECUR
+#define INCLUDED_COLRECUR
 
-#include <Command.h>
+#include <ColTypeString.h>
 
-#include <string>
-
-class CmdModify : public Command {
+// This is 'string', and not 'duration' to force the value to be stored as a
+// raw duration, so that it can be reevaluated every time.
+class ColumnRecur : public ColumnTypeString {
  public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
+  ColumnRecur();
+  void setStyle(const std::string&);
+  void measure(Task&, unsigned int&, unsigned int&);
+  void render(std::vector<std::string>&, Task&, int, Color&);
+  void modify(Task&, const std::string&);
+
+ private:
 };
 
 #endif

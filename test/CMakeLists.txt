@@ -96,6 +96,7 @@ set (pythonTests
   completed.test.py
   confirmation.test.py
   count.test.py
+  custom.recur_ind.test.py
   custom.test.py
   custom.tag_ind.test.py
   date.iso.test.py
@@ -151,6 +152,7 @@ set (pythonTests
   pri_sort.test.py
   project.test.py
   purge.test.py
+  recurrence.test.py
   quotes.test.py
   rc.override.test.py
   read-only.test.py

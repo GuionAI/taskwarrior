@@ -243,18 +243,12 @@ class TestRecurringAttributeFormats(TestCase):
     def setUp(self):
         """Executed before each test in the class"""
 
-    def test_recurrence_columns_removed(self):
-        """Verify that recur/mask/imask columns are no longer available"""
-        # Recurrence-specific columns were removed; verify they produce errors
-        code, out, err = self.t.runError(
-            "xxx rc.report.xxx.columns:id,recur"
-        )
-        self.assertIn("Unrecognized column name 'recur'", err)
-
-        code, out, err = self.t.runError(
-            "xxx rc.report.xxx.columns:id,mask"
-        )
-        self.assertIn("Unrecognized column name 'mask'", err)
+    def test_recurrence_columns_available(self):
+        """Verify that recur/mask/imask columns are recognized"""
+        code, out, err = self.t("columns recur")
+        self.assertIn("recur", out)
+        code, out, err = self.t("columns mask")
+        self.assertIn("mask", out)
 
 
 class TestProjectFormats(TestCase):

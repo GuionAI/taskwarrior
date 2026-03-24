@@ -158,6 +158,8 @@ Task::status Task::textToStatus(const std::string& input) {
     return Task::completed;
   else if (input[0] == 'd')
     return Task::deleted;
+  else if (input[0] == 'r')
+    return Task::recurring;
   // for compatibility, parse `w` as pending; Task::getStatus will
   // apply the virtual waiting status if appropriate
   else if (input[0] == 'w')
@@ -170,6 +172,8 @@ Task::status Task::textToStatus(const std::string& input) {
 std::string Task::statusToText(Task::status s) {
   if (s == Task::pending)
     return "pending";
+  else if (s == Task::recurring)
+    return "recurring";
   else if (s == Task::waiting)
     return "waiting";
   else if (s == Task::completed)
@@ -490,7 +494,7 @@ bool Task::is_overdue() const {
   if (has("due")) {
     Task::status status = getStatus();
 
-    if (status != Task::completed && status != Task::deleted) {
+    if (status != Task::completed && status != Task::deleted && status != Task::recurring) {
       Task::dateState state = getDateState("due");
       if (state == dateEarlierToday || state == dateBeforeToday) return true;
     }
@@ -1084,6 +1088,10 @@ bool Task::hasTag(const std::string& tag) const {
     if (tag == "BLOCKED") return is_blocked;
     if (tag == "UNBLOCKED") return !is_blocked;
     if (tag == "BLOCKING") return is_blocking;
+    if (tag == "CHILD") return has("parent") || has("template");
+    if (tag == "INSTANCE") return has("template") || has("parent");
+    if (tag == "PARENT") return has("mask") || has("last");
+    if (tag == "TEMPLATE") return has("last") || has("mask");
 #ifdef PRODUCT_TASKWARRIOR
     if (tag == "READY") return is_ready();
     if (tag == "DUE") return is_due();
@@ -1375,6 +1383,10 @@ void Task::validate_add() {
   else if (get("description") == "")
     throw std::string("Cannot add a task that is blank.");
 
+  // Cannot have an old-style recur frequency with no due date.
+  if (has("recur") && (!has("due") || get("due") == ""))
+    throw std::string("A recurring task must also have a 'due' date.");
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1404,8 +1416,14 @@ void Task::validate(bool applyDefault /* = true */) {
   } else
     set("uuid", uuid());
 
+  // Recurring tasks get a special status.
+  if (status == Task::pending && has("due") && has("recur") &&
+      (!has("parent") || get("parent") == "") && (!has("template") || get("template") == "")) {
+    status = Task::recurring;
+  }
+
   // Tasks with a wait: date get a special status.
-  if (status == Task::pending && has("wait") && get("wait") != "")
+  else if (status == Task::pending && has("wait") && get("wait") != "")
     status = Task::waiting;
 
   // By default, tasks are pending.
@@ -1414,6 +1432,11 @@ void Task::validate(bool applyDefault /* = true */) {
 
   // Store the derived status.
   setStatus(status);
+
+  // Default to 'periodic' type recurrence.
+  if (status == Task::recurring && (!has("rtype") || get("rtype") == "")) {
+    set("rtype", "periodic");
+  }
 
 #ifdef PRODUCT_TASKWARRIOR
   // Provide an entry date unless user already specified one.
@@ -1495,6 +1518,26 @@ void Task::validate(bool applyDefault /* = true */) {
 
   if (!has("description") || get("description") == "")
     Context::getContext().footnote(format("Warning: task has no description."));
+
+  // Cannot have an old-style recur frequency with no due date.
+  if (has("recur") && (!has("due") || get("due") == "")) {
+    Context::getContext().footnote(format("Warning: recurring task has no due date."));
+    remove("recur");
+  }
+
+  // Old-style recur durations must be valid.
+  if (has("recur")) {
+    std::string value = get("recur");
+    if (value != "") {
+      Duration p;
+      std::string::size_type i = 0;
+      if (!p.parse(value, i)) {
+        Context::getContext().footnote(
+            format("Warning: The recurrence value '{1}' is not valid.", value));
+        remove("recur");
+      }
+    }
+  }
 
 #ifdef PRODUCT_TASKWARRIOR
   // Validate parent field for tree hierarchy.

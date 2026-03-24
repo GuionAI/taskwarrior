@@ -120,7 +120,6 @@ class TestDelete(TestCase):
         dependencies = self.t("_get 1.depends")[1].strip()
         self.assertNotIn(uuid, dependencies)
 
-    @unittest.skip("recurrence removed in this fork")
     def test_purge_children(self):
         """Purge command indirectly purges child tasks"""
         self.t("add one recur:daily due:yesterday")
@@ -138,7 +137,6 @@ class TestDelete(TestCase):
         code, out, err = self.t("uuids")
         self.assertEqual("\n", out)
 
-    @unittest.skip("recurrence removed in this fork")
     def test_purge_children_fail_pending(self):
         """Purge aborts if task has pending children"""
         self.t("add one recur:daily due:yesterday")
@@ -160,7 +158,6 @@ class TestDelete(TestCase):
         code, out, err = self.t("count")
         self.assertEqual("4\n", out)
 
-    @unittest.skip("recurrence removed in this fork")
     def test_purge_children_fail_confirm(self):
         """Purge aborts if user does not agree with it affecting child tasks"""
         self.t("add one recur:daily due:yesterday")
@@ -180,7 +177,6 @@ class TestDelete(TestCase):
         code, out, err = self.t("count")
         self.assertEqual("4\n", out)
 
-    @unittest.skip("recurrence removed in this fork")
     def test_purge_children_removes_dependencies(self):
         """Purge command removes dependencies on indirectly purged tasks"""
         self.t("add one recur:daily due:yesterday")

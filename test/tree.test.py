@@ -508,10 +508,56 @@ class TestTreeExportKey(TestCase):
         """Exported JSON uses parent_id key, not parent."""
         self.t("add Project")
         parent_uuid = get_uuid(self.t, "Project")
-        self.t(f"add Child parent_id:{parent_uuid}")
+        self.t(f"add SubTask parent_id:{parent_uuid}")
         code, out, err = self.t("export")
-        self.assertIn('"parent_id":', out)
-        self.assertNotIn('"parent":', out)
+        import json
+        tasks = json.loads(out)
+        tree_child = next(t for t in tasks if t.get("description") == "SubTask")
+        self.assertIn("parent_id", tree_child)
+        self.assertNotIn("parent", tree_child)  # tree children use parent_id, not parent
+
+
+class TestRecurrenceTreeCoexistence(TestCase):
+    """Tests verifying recurrence and tree hierarchy use separate fields."""
+
+    def setUp(self):
+        self.t = Task()
+
+    def test_recurrence_parent_separate_from_tree_parent_id(self):
+        """Recurrence 'parent' and tree 'parent_id' are separate fields."""
+        import json
+
+        # Create a recurring task
+        self.t("add Weekly due:tomorrow recur:weekly")
+        self.t("list")  # triggers handleRecurrence
+
+        # Get all tasks
+        code, out, err = self.t("export")
+        tasks = json.loads(out)
+
+        recurring = [t for t in tasks if t.get("status") == "recurring"]
+        children = [t for t in tasks if "parent" in t and t.get("status") == "pending"]
+
+        # Recurrence children should have 'parent' (template link)
+        for child in children:
+            self.assertIn("parent", child)
+            self.assertNotIn("parent_id", child)
+
+        # Tree hierarchy uses parent_id
+        self.t("add Project")
+        proj_uuid = get_uuid(self.t, "Project")
+        self.t(f"add SubTask parent_id:{proj_uuid}")
+
+        code, out, err = self.t("export")
+        tasks = json.loads(out)
+        subtask = next(t for t in tasks if t.get("description") == "SubTask")
+        self.assertIn("parent_id", subtask)
+        self.assertNotIn("parent", subtask)
+
+        # task tree should NOT show recurrence children as tree nodes
+        code, out, err = self.t(f"{proj_uuid[:8]} tree")
+        self.assertIn("SubTask", out)
+        self.assertNotIn("Weekly", out)
 
 
 if __name__ == "__main__":

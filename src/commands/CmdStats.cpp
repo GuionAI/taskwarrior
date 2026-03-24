@@ -107,6 +107,9 @@ int CmdStats::execute(std::string& output) {
       case Task::waiting:
         ++waitingT;
         break;
+      case Task::recurring:
+        // Recurring template tasks are not counted as pending
+        break;
     }
 
     if (task.is_blocked) ++blockedT;

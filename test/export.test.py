@@ -129,7 +129,6 @@ class TestExportCommand(TestCase):
         self.t("1 modify schedule:tomorrow")
         self.assertTimestamp(self.export(1)["scheduled"])
 
-    @unittest.skip("Recurrence not supported in PowerSync backend")
     def test_export_recur(self):
         pass
 

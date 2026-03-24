@@ -46,6 +46,7 @@ CmdZshAttributes::CmdZshAttributes() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::internal;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

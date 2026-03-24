@@ -24,25 +24,32 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#include <cmake.h>
+// cmake.h include header must come first
 
-#include <Command.h>
+#include <ColIMask.h>
+#include <format.h>
 
-#include <string>
+////////////////////////////////////////////////////////////////////////////////
+ColumnIMask::ColumnIMask() {
+  _name = "imask";
+  _style = "number";
+  _label = "Mask Index";
+  _modifiable = false;
+  _styles = {"number"};
+  _examples = {"12"};
+}
 
-class CmdModify : public Command {
- public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
-};
+////////////////////////////////////////////////////////////////////////////////
+// Set the minimum and maximum widths for the value.
+void ColumnIMask::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
+  minimum = maximum = 0;
+  if (task.has(_name)) minimum = maximum = task.get(_name).length();
+}
 
-#endif
+////////////////////////////////////////////////////////////////////////////////
+void ColumnIMask::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
+  if (task.has(_name)) renderStringRight(lines, width, color, task.get(_name));
+}
+
 ////////////////////////////////////////////////////////////////////////////////

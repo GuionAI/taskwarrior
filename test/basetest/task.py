@@ -136,6 +136,29 @@ class Task(object):
             CREATE TABLE IF NOT EXISTS tc_working_set (
                 uuid TEXT PRIMARY KEY
             );
+            CREATE TRIGGER IF NOT EXISTS tc_working_set_on_insert
+                AFTER INSERT ON tc_tasks_data
+                WHEN NEW.status NOT IN ('completed', 'deleted')
+            BEGIN
+                INSERT OR IGNORE INTO tc_working_set (uuid) VALUES (NEW.id);
+            END;
+            CREATE TRIGGER IF NOT EXISTS tc_working_set_on_update_add
+                AFTER UPDATE OF status ON tc_tasks_data
+                WHEN NEW.status NOT IN ('completed', 'deleted')
+            BEGIN
+                INSERT OR IGNORE INTO tc_working_set (uuid) VALUES (NEW.id);
+            END;
+            CREATE TRIGGER IF NOT EXISTS tc_working_set_on_update_remove
+                AFTER UPDATE OF status ON tc_tasks_data
+                WHEN NEW.status IN ('completed', 'deleted')
+            BEGIN
+                DELETE FROM tc_working_set WHERE uuid = NEW.id;
+            END;
+            CREATE TRIGGER IF NOT EXISTS tc_working_set_on_delete
+                AFTER DELETE ON tc_tasks_data
+            BEGIN
+                DELETE FROM tc_working_set WHERE uuid = OLD.id;
+            END;
         """)
         conn.close()
 
@@ -388,12 +411,12 @@ class Task(object):
         args = self._split_string_args_if_string(args)
         args = self._translate_numeric_ids(args)
 
-        # Snapshot existing task IDs before running add/duplicate/import
-        # Note: 'log' creates completed tasks which had no working-set IDs in
-        # old TW, so we do NOT track them in _task_ids.
+        # Snapshot existing task IDs before every command so we can detect
+        # newly created tasks (including recurrence children created by
+        # handleRecurrence() during list/done/etc. commands).
+        known_ids_set = set(self._task_ids)
         _write_cmds = {"add", "duplicate", "import"}
         is_add_or_log = args and any(a in _write_cmds for a in args)
-        known_ids_set = set(self._task_ids) if is_add_or_log else None
 
         command.extend(args)
 
@@ -404,13 +427,14 @@ class Task(object):
         if output[0] != 0:
             raise CommandError(command, *output)
 
-        # Track IDs of newly created tasks
-        if is_add_or_log:
-            if output[1] and re.search(r"Created task [0-9a-f]{8}\.", output[1]):
-                self._track_add_output(output[1])
-            else:
-                # Verbose output suppressed; query DB for newly added tasks
-                self._track_add_from_db(known_ids_set)
+        # Track IDs of newly created tasks after every command.
+        # For add/import: prefer parsing from stdout if verbose output is present.
+        if is_add_or_log and output[1] and re.search(r"Created task [0-9a-f]{8}\.", output[1]):
+            self._track_add_output(output[1])
+        else:
+            # Scan DB for any new tasks (handles recurrence children and
+            # suppressed-verbose add/import as well).
+            self._track_add_from_db(known_ids_set)
 
         return output
 
@@ -437,11 +461,18 @@ class Task(object):
 
         args = self._split_string_args_if_string(args)
         args = self._translate_numeric_ids(args)
+
+        # Snapshot known IDs before command for post-run tracking
+        known_ids_set = set(self._task_ids)
+
         command.extend(args)
 
         output = run_cmd_wait_nofail(
             command, input, merge_streams=merge_streams, env=self.env, timeout=timeout
         )
+
+        # Track any new tasks created (e.g. recurrence children) even on error
+        self._track_add_from_db(known_ids_set)
 
         # output[0] is the exit code
         if output[0] == 0 or output[0] is None:

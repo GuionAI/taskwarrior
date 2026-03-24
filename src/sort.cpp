@@ -163,7 +163,8 @@ static bool sort_compare(int left, int right) {
 
     // String.
     else if (field == "description" || field == "project" || field == "status" || field == "tags" ||
-             field == "uuid" || field == "parent_id" || field == "position") {
+             field == "uuid" || field == "parent_id" || field == "position" ||
+             field == "imask" || field == "mask") {
       auto left_string = (*global_data)[left].get_ref(field);
       auto right_string = (*global_data)[right].get_ref(field);
 

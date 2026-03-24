@@ -35,42 +35,29 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from basetest import Task, TestCase
 
 
-class TestLogCommand(TestCase):
+class TestCustomRecurIndicator(TestCase):
     def setUp(self):
         """Executed before each test in the class"""
         self.t = Task()
 
-    def test_log(self):
-        """Test that 'log' creates completed tasks"""
-        self.t("log This is a test")
-        code, out, err = self.t("completed")
-        self.assertIn("This is a test", out)
+    def test_recurrence_indicator(self):
+        """Add a recurring and non-recurring task, look for the indicator."""
+        self.t.config("report.foo.columns", "id,recur.indicator")
+        self.t.config("report.foo.labels", "ID,R")
+        self.t.config("report.foo.sort", "id+")
+        self.t.config("verbose", "nothing")
 
-    def test_log_wait(self):
-        """Verify that you cannot log a waited task"""
-        code, out, err = self.t.runError("log This is a test wait:eoy")
-        self.assertIn("You cannot log waiting tasks.", err)
+        self.t("add foo due:tomorrow recur:weekly")
+        self.t("add bar")
+        code, out, err = self.t("foo")
+        self.assertIn(" 1 R", out)
+        self.assertIn(" 2", out)
+        self.assertIn(" 3 R", out)
 
-    def test_log_recur(self):
-        """Verify that you cannot log a recurring task"""
-        code, out, err = self.t.runError("log This is a test due:eom recur:weekly")
-        self.assertIn("You cannot log recurring tasks.", err)
-
-
-class TestBug1575(TestCase):
-    def setUp(self):
-        """Executed before each test in the class"""
-        self.t = Task()
-
-    def test_spurious_whitespace_in_url(self):
-        """1575: ensure that extra whitespace does not get inserted into a URL.
-
-        tw-1575: `task log` mangles URLs when quoted
-        """
-        self.t("log testing123 https://foo.example.com")
-
-        code, out, err = self.t("completed")
-        self.assertIn("testing123 https://foo.example.com", out)
+        code, out, err = self.t("foo rc.recurrence.indicator=RE")
+        self.assertIn(" 1 RE", out)
+        self.assertIn(" 2", out)
+        self.assertIn(" 3 RE", out)
 
 
 if __name__ == "__main__":

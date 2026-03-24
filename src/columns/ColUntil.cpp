@@ -24,25 +24,15 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#include <cmake.h>
+// cmake.h include header must come first
 
-#include <Command.h>
+#include <ColUntil.h>
 
-#include <string>
+////////////////////////////////////////////////////////////////////////////////
+ColumnUntil::ColumnUntil() {
+  _name = "until";
+  _label = "Until";
+}
 
-class CmdModify : public Command {
- public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
-};
-
-#endif
 ////////////////////////////////////////////////////////////////////////////////

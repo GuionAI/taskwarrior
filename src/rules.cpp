@@ -211,6 +211,11 @@ static void colorizeDeleted(Task& task, const Color& base, Color& c, bool merge)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void colorizeRecurring(Task& task, const Color& base, Color& c, bool merge) {
+  if (task.has("recur")) applyColor(base, c, merge);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void autoColorize(Task& task, Color& c) {
   // The special tag 'nocolor' overrides all auto and specific colorization.
   if (!Context::getContext().color() || task.hasTag("nocolor")) {
@@ -253,6 +258,8 @@ void autoColorize(Task& task, Color& c) {
         colorizeCompleted(task, base, c, merge);
       else if (*r == "color.deleted")
         colorizeDeleted(task, base, c, merge);
+      else if (*r == "color.recurring")
+        colorizeRecurring(task, base, c, merge);
 
       // Wildcards
       else if (!r->compare(0, 10, "color.tag.", 10))
