@@ -138,7 +138,7 @@ void CmdPlan::createSubtasks(const std::string& parentUuid,
     // Create the task — set annotation before add to avoid double undo/sync entries.
     Task task;
     task.set("description", g.node.title);
-    task.set("parent", parentUuid);
+    task.set("parent_id", parentUuid);
     task.set("position", static_cast<std::string>(positions[i]));
     task.set("status", "pending");
     if (!g.node.annotation.empty()) task.addAnnotation(g.node.annotation);

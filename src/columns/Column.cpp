@@ -86,7 +86,7 @@ Column* Column::factory(const std::string& name, const std::string& report) {
     c = new ColumnID();
   else if (column_name == "modified")
     c = new ColumnModified();
-  else if (column_name == "parent")
+  else if (column_name == "parent_id")
     c = new ColumnParent();
   else if (column_name == "position")
     c = new ColumnPosition();

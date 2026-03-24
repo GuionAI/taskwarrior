@@ -163,10 +163,10 @@ int CmdInfo::execute(std::string& output) {
     }
 
     // parent (tree hierarchy)
-    if (task.has("parent")) {
+    if (task.has("parent_id")) {
       row = view.addRow();
       view.set(row, 0, "Parent task");
-      view.set(row, 1, task.get("parent"));
+      view.set(row, 1, task.get("parent_id"));
     }
 
     // entry

@@ -32,7 +32,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 ColumnParent::ColumnParent() {
-  _name = "parent";
+  _name = "parent_id";
   _style = "long";
   _label = "Parent task";
   _modifiable = true;

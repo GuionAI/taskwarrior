@@ -315,7 +315,7 @@ bool TDB2::has(const std::string& uuid) {
 const std::vector<Task> TDB2::children(const std::string& parent_uuid) {
   std::vector<Task> results;
   for (auto& task : all_tasks()) {
-    if (task.get("parent") == parent_uuid) results.push_back(task);
+    if (task.get("parent_id") == parent_uuid) results.push_back(task);
   }
   return results;
 }
@@ -332,7 +332,7 @@ const std::vector<Task> TDB2::descendants(const std::string& parent_uuid) {
     std::string current = queue.back();
     queue.pop_back();
     for (auto& task : snapshot) {
-      if (task.get("parent") == current) {
+      if (task.get("parent_id") == current) {
         results.push_back(task);
         std::string uuid = task.get("uuid");
         if (!visited.count(uuid)) {

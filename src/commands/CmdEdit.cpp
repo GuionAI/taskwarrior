@@ -199,8 +199,6 @@ std::string CmdEdit::formatTask(Task task, const std::string& dateformat) {
          << "# ID:                " << task.id << '\n'
          << "# UUID:              " << task.get("uuid") << '\n'
          << "# Status:            " << Lexer::ucFirst(Task::statusToText(task.getStatus())) << '\n'
-         << "# Mask:              " << task.get("mask") << '\n'
-         << "# iMask:             " << task.get("imask") << '\n'
          << "  Project:           " << task.get("project") << '\n';
 
   if (verbose) before << "# Separate the tags with spaces, like this: tag1 tag2\n";
@@ -215,7 +213,7 @@ std::string CmdEdit::formatTask(Task task, const std::string& dateformat) {
          << "  Until:             " << formatDate(task, "until", dateformat) << '\n'
          << "  Wait until:        " << formatDate(task, "wait", dateformat) << '\n'
          << "# Modified:          " << formatDate(task, "modified", dateformat) << '\n'
-         << "  Parent:            " << task.get("parent") << '\n';
+         << "  Parent:            " << task.get("parent_id") << '\n';
 
   if (verbose)
     before
@@ -459,13 +457,13 @@ void CmdEdit::parseTask(Task& task, const std::string& after, const std::string&
 
   // parent
   value = findValue(after, "\n  Parent:");
-  if (value != task.get("parent")) {
+  if (value != task.get("parent_id")) {
     if (value != "") {
       Context::getContext().footnote("Parent UUID modified.");
-      task.set("parent", value);
+      task.set("parent_id", value);
     } else {
       Context::getContext().footnote("Parent UUID removed.");
-      task.remove("parent");
+      task.remove("parent_id");
     }
   }
 

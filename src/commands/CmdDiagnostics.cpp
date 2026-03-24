@@ -245,7 +245,7 @@ int CmdDiagnostics::execute(std::string& output) {
     }
 
     // Check tree parent
-    auto parentUUID = task.get("parent");
+    auto parentUUID = task.get("parent_id");
 
     if (parentUUID != "" && !Context::getContext().tdb2.has(parentUUID)) {
       out << "             "
