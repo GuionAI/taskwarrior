@@ -656,7 +656,57 @@ class TestTreeDefaultFilter(TestCase):
 
         # Empty tree.filter override — should show all tasks including completed
         code, out, err = self.t("rc.tree.filter= tree")
+        self.assertIn(pending_uuid[:8], out)
         self.assertIn(completed_uuid[:8], out)
+
+    def test_plain_tree_excludes_waiting_roots(self):
+        """task tree (no args) excludes waiting tasks (-WAITING in default filter)."""
+        self.t("add Pending Root")
+        self.t("add Waiting Root wait:tomorrow")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        waiting_uuid = get_uuid(self.t, "Waiting Root")
+
+        code, out, err = self.t("tree")
+        self.assertIn(pending_uuid[:8], out)
+        self.assertNotIn(waiting_uuid[:8], out)
+
+        # Empty override should reveal the waiting task
+        code, out, err = self.t("rc.tree.filter= tree")
+        self.assertIn(waiting_uuid[:8], out)
+
+    def test_plain_tree_shows_completed_child_of_pending_root_with_indicator(self):
+        """Completed child of a pending root shows with [done] indicator.
+
+        The default filter applies only to visual roots — descendants are always
+        rendered (with status indicators) so the full subtree stays visible.
+        """
+        self.t("add Root Task")
+        root_uuid = get_uuid(self.t, "Root Task")
+        self.t(f"add Done Child parent_id:{root_uuid}")
+        child_uuid = get_uuid(self.t, "Done Child")
+
+        self.t(f"rc.confirmation=no {child_uuid[:8]} done")
+
+        code, out, err = self.t("tree")
+        self.assertIn(root_uuid[:8], out)
+        self.assertIn(child_uuid[:8], out)
+        self.assertIn("[done]", out)
+
+    def test_tree_user_filter_and_default_filter_compose(self):
+        """task tree project:Foo shows only pending tasks in that project."""
+        self.t("add Alpha project:Foo")
+        self.t("add Beta project:Bar")
+        self.t("add Gamma project:Foo")
+        alpha_uuid = get_uuid(self.t, "Alpha")
+        beta_uuid = get_uuid(self.t, "Beta")
+        gamma_uuid = get_uuid(self.t, "Gamma")
+
+        self.t(f"rc.confirmation=no {gamma_uuid[:8]} done")
+
+        code, out, err = self.t("rc.context= tree project:Foo")
+        self.assertIn(alpha_uuid[:8], out)
+        self.assertNotIn(beta_uuid[:8], out)
+        self.assertNotIn(gamma_uuid[:8], out)
 
 
 if __name__ == "__main__":
