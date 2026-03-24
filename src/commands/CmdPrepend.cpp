@@ -43,7 +43,6 @@ CmdPrepend::CmdPrepend() {
   _description = "Prepends text to an existing task description";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = true;

@@ -44,7 +44,6 @@ CmdIDs::CmdIDs() {
   _description = "Shows the IDs of matching tasks, as a range";
   _read_only = true;
   _displays_id = true;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -59,61 +58,16 @@ int CmdIDs::execute(std::string& output) {
   std::vector<Task> filtered;
   filter.subset(filtered);
 
-  // Find number of matching tasks.
-  std::vector<int> ids;
+  // Collect 8-char hex UUID prefixes for matching tasks.
+  std::vector<std::string> ids;
   for (auto& task : filtered)
-    if (task.id) ids.push_back(task.id);
+    if (!task.id.empty()) ids.push_back(task.id);
 
   std::sort(ids.begin(), ids.end());
-  output = compressIds(ids) + '\n';
+  output = join(" ", ids) + '\n';
 
   Context::getContext().headers.clear();
   return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// The vector must be sorted first.  This is a modified version of the run-
-// length encoding algorithm.
-//
-// This function converts the vector:
-//
-//   [1, 3, 4, 6, 7, 8, 9, 11]
-//
-// to ths string:
-//
-//   1,3-4,6-9,11
-//
-std::string CmdIDs::compressIds(const std::vector<int>& ids) {
-  std::stringstream result;
-
-  auto range_start = 0;
-  auto range_end = 0;
-
-  for (unsigned int i = 0; i < ids.size(); ++i) {
-    if (i + 1 == ids.size()) {
-      if (result.str().length()) result << ' ';
-
-      if (range_start < range_end)
-        result << ids[range_start] << '-' << ids[range_end];
-      else
-        result << ids[range_start];
-    } else {
-      if (ids[range_end] + 1 == ids[i + 1]) {
-        ++range_end;
-      } else {
-        if (result.str().length()) result << ' ';
-
-        if (range_start < range_end)
-          result << ids[range_start] << '-' << ids[range_end];
-        else
-          result << ids[range_start];
-
-        range_start = range_end = i + 1;
-      }
-    }
-  }
-
-  return result.str();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +77,6 @@ CmdCompletionIds::CmdCompletionIds() {
   _description = "Shows the IDs of matching tasks, in the form of a list";
   _read_only = true;
   _displays_id = true;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -138,7 +91,7 @@ int CmdCompletionIds::execute(std::string& output) {
   std::vector<Task> filtered;
   filter.subset(filtered);
 
-  std::vector<int> ids;
+  std::vector<std::string> ids;
   for (auto& task : filtered)
     if (task.getStatus() != Task::deleted && task.getStatus() != Task::completed)
       ids.push_back(task.id);
@@ -157,7 +110,6 @@ CmdZshCompletionIds::CmdZshCompletionIds() {
   _description = "Shows the IDs and descriptions of matching tasks";
   _read_only = true;
   _displays_id = true;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -191,7 +143,6 @@ CmdUUIDs::CmdUUIDs() {
   _description = "Shows the UUIDs of matching tasks, as a space-separated list";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -224,7 +175,6 @@ CmdCompletionUuids::CmdCompletionUuids() {
   _description = "Shows the UUIDs of matching tasks, as a list";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -257,7 +207,6 @@ CmdZshCompletionUuids::CmdZshCompletionUuids() {
   _description = "Shows the UUIDs and descriptions of matching tasks";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;

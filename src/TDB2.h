@@ -50,24 +50,17 @@ class TDB2 {
   void modify(Task&);
   void purge(Task&);
   void get_changes(std::vector<Task>&);
-  void gc();
   void expire_tasks();
-  int latest_id();
 
   // Generalized task accessors.
   const std::vector<Task> all_tasks();
   const std::vector<Task> pending_tasks();
   const std::vector<Task> completed_tasks();
-  bool get(int, Task&);
   bool get(const std::string&, Task&);
   bool has(const std::string&);
   const std::vector<Task> children(const std::string& parent_uuid);
   const std::vector<Task> descendants(const std::string& parent_uuid);
   rust::Box<tc::TreeMapWrapper> tree_map();
-
-  // ID <--> UUID mapping.
-  std::string uuid(int);
-  int id(const std::string&);
 
   int num_local_changes();
   int num_reverts_possible();
@@ -78,7 +71,6 @@ class TDB2 {
   std::optional<rust::Box<tc::Replica>> _replica;
 
   // Cached information from the replica
-  std::optional<rust::Box<tc::WorkingSet>> _working_set;
   std::optional<std::vector<Task>> _pending_tasks;
   std::optional<std::vector<Task>> _completed_tasks;
   void invalidate_cached_info();
@@ -86,7 +78,6 @@ class TDB2 {
   // UUID -> Task containing all tasks modified in this invocation.
   std::map<std::string, Task> changes;
 
-  const rust::Box<tc::WorkingSet>& working_set();
   void maybe_add_undo_point(rust::Vec<tc::Operation>&);
 };
 

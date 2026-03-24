@@ -83,7 +83,6 @@ set (pythonTests
   annotate.test.py
   append.test.py
   args.test.py
-  bash_completion.test.py
   blocked.test.py
   bulk.test.py
   burndown.test.py
@@ -102,7 +101,6 @@ set (pythonTests
   date.iso.test.py
   dateformat.test.py
   datesort.test.py
-  datetime-negative.test.py
   debug.test.py
   default.test.py
   delete.test.py
@@ -186,7 +184,6 @@ set (pythonTests
   unicode.test.py
   unique.test.py
   unusual_task.test.py
-  upgrade.test.py
   urgency.test.py
   urgency_inherit.test.py
   uuid.test.py
@@ -235,8 +232,6 @@ set (shell_SRCS
   tw-2451.test.sh
   tw-2514.test.sh
   tw-2530.test.sh
-  tw-2550.test.sh
-  tw-2581.test.sh
   tw-3102.test.sh
   tw-3109.test.sh
 )

@@ -212,7 +212,7 @@ bool getDOM(const std::string& name, const Task* task, Variant& value) {
 
   // Quickly deal with the most common cases.
   if (task && name == "id") {
-    value = Variant(static_cast<int>(task->id));
+    value = Variant(task->id);
     return true;
   }
 
@@ -245,14 +245,6 @@ bool getDOM(const std::string& name, const Task* task, Variant& value) {
 
       // Eat elements[0]/UUID.
       elements.erase(elements.begin());
-    } else if (type == Lexer::Type::number && token.find('.') == std::string::npos) {
-      auto id = strtol(token.c_str(), nullptr, 10);
-      if (id && (!task || id != task->id)) {
-        if (Context::getContext().tdb2.get(id, loaded_task)) reloaded = true;
-      }
-
-      // Eat elements[0]/ID.
-      elements.erase(elements.begin());
     }
 
     if (reloaded) ref = &loaded_task;
@@ -270,7 +262,7 @@ bool getDOM(const std::string& name, const Task* task, Variant& value) {
     // Now that 'ref' is the contextual task, and any ID/UUID is chopped off the
     // elements vector, DOM resolution is now simple.
     if (size == 1 && canonical == "id") {
-      value = Variant(static_cast<int>(ref->id));
+      value = Variant(ref->id);
       return true;
     }
 

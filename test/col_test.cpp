@@ -43,35 +43,35 @@ int TEST_NAME(int, char**) {
   unsigned int maximum = 0;
 
   Task t1;
-  t1.id = 3;
+  t1.id = "a";
   columnID.measure(t1, minimum, maximum);
-  test.is((int)minimum, 1, "id:3 --> ColID::measure minimum 1");
-  test.is((int)maximum, 1, "id:3 --> ColID::measure maximum 1");
+  test.is((int)minimum, 1, "id:a --> ColID::measure minimum 1");
+  test.is((int)maximum, 1, "id:a --> ColID::measure maximum 1");
 
-  t1.id = 33;
+  t1.id = "ab";
   columnID.measure(t1, minimum, maximum);
-  test.is((int)minimum, 2, "id:33 --> ColID::measure minimum 2");
-  test.is((int)maximum, 2, "id:33 --> ColID::measure maximum 2");
+  test.is((int)minimum, 2, "id:ab --> ColID::measure minimum 2");
+  test.is((int)maximum, 2, "id:ab --> ColID::measure maximum 2");
 
-  t1.id = 333;
+  t1.id = "abc";
   columnID.measure(t1, minimum, maximum);
-  test.is((int)minimum, 3, "id:333 --> ColID::measure minimum 3");
-  test.is((int)maximum, 3, "id:333 --> ColID::measure maximum 3");
+  test.is((int)minimum, 3, "id:abc --> ColID::measure minimum 3");
+  test.is((int)maximum, 3, "id:abc --> ColID::measure maximum 3");
 
-  t1.id = 3333;
+  t1.id = "abcd";
   columnID.measure(t1, minimum, maximum);
-  test.is((int)minimum, 4, "id:3333 --> ColID::measure minimum 4");
-  test.is((int)maximum, 4, "id:3333 --> ColID::measure maximum 4");
+  test.is((int)minimum, 4, "id:abcd --> ColID::measure minimum 4");
+  test.is((int)maximum, 4, "id:abcd --> ColID::measure maximum 4");
 
-  t1.id = 33333;
+  t1.id = "abcde";
   columnID.measure(t1, minimum, maximum);
-  test.is((int)minimum, 5, "id:33333 --> ColID::measure minimum 5");
-  test.is((int)maximum, 5, "id:33333 --> ColID::measure maximum 5");
+  test.is((int)minimum, 5, "id:abcde --> ColID::measure minimum 5");
+  test.is((int)maximum, 5, "id:abcde --> ColID::measure maximum 5");
 
-  t1.id = 333333;
+  t1.id = "a1b2c3d4";
   columnID.measure(t1, minimum, maximum);
-  test.is((int)minimum, 6, "id:333333 --> ColID::measure minimum 6");
-  test.is((int)maximum, 6, "id:333333 --> ColID::measure maximum 6");
+  test.is((int)minimum, 8, "id:a1b2c3d4 --> ColID::measure minimum 8");
+  test.is((int)maximum, 8, "id:a1b2c3d4 --> ColID::measure maximum 8");
 
   return 0;
 }

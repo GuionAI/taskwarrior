@@ -769,23 +769,25 @@ class TestHasHasnt(TestCase):
         self.t("7 annotate two")
         self.t("7 annotate three")
 
+        # Use hex UUID prefixes from _task_ids instead of numeric IDs.
+        ids = self.t._task_ids  # [hex1, hex2, ..., hex7]
         code, out, err = self.t("description.has:foo long")
-        self.assertIn("\n 1", out)
-        self.assertIn("\n 2", out)
-        self.assertIn("\n 3", out)
-        self.assertNotIn("\n 4", out)
-        self.assertIn("\n 5", out)
-        self.assertIn("\n 6", out)
-        self.assertNotIn("\n 7", out)
+        self.assertIn(ids[0], out)   # task 1: desc "foo"
+        self.assertIn(ids[1], out)   # task 2: desc "foo"
+        self.assertIn(ids[2], out)   # task 3: desc "foo"
+        self.assertNotIn(ids[3], out)  # task 4: desc "bar", no foo annotation
+        self.assertIn(ids[4], out)   # task 5: desc "bar", annotation "foo"
+        self.assertIn(ids[5], out)   # task 6: desc "bar", annotation "foo"
+        self.assertNotIn(ids[6], out)  # task 7: desc "one", no foo annotation
 
         code, out, err = self.t("description.hasnt:foo long")
-        self.assertNotIn("\n 1", out)
-        self.assertNotIn("\n 2", out)
-        self.assertNotIn("\n 3", out)
-        self.assertIn("\n 4", out)
-        self.assertNotIn("\n 5", out)
-        self.assertNotIn("\n 6", out)
-        self.assertIn("\n 7", out)
+        self.assertNotIn(ids[0], out)  # task 1: desc "foo"
+        self.assertNotIn(ids[1], out)  # task 2: desc "foo"
+        self.assertNotIn(ids[2], out)  # task 3: desc "foo"
+        self.assertIn(ids[3], out)   # task 4: desc "bar", no foo annotation
+        self.assertNotIn(ids[4], out)  # task 5: desc "bar", annotation "foo"
+        self.assertNotIn(ids[5], out)  # task 6: desc "bar", annotation "foo"
+        self.assertIn(ids[6], out)   # task 7: desc "one", no foo annotation
 
 
 class TestBefore(TestCase):
@@ -806,39 +808,45 @@ class TestBefore(TestCase):
 
     def test_before_none(self):
         """Verify start.before:2008-12-01 yields nothing"""
+        id1, id2 = self.t._task_ids[0], self.t._task_ids[1]
         code, out, err = self.t("start.before:2008-12-01 _ids")
-        self.assertNotIn("1", out)
-        self.assertNotIn("2", out)
+        self.assertNotIn(id1, out)
+        self.assertNotIn(id2, out)
 
     def test_after_none(self):
         """Verify start.after:2009-05-01 yields nothing"""
+        id1, id2 = self.t._task_ids[0], self.t._task_ids[1]
         code, out, err = self.t("start.after:2009-05-01 _ids")
-        self.assertNotIn("1", out)
-        self.assertNotIn("2", out)
+        self.assertNotIn(id1, out)
+        self.assertNotIn(id2, out)
 
     def test_before_a(self):
-        """Verify start.before:2009-01-01 yields '1'"""
+        """Verify start.before:2009-01-01 yields first task"""
+        id1, id2 = self.t._task_ids[0], self.t._task_ids[1]
         code, out, err = self.t("start.before:2009-01-01 _ids")
-        self.assertIn("1", out)
-        self.assertNotIn("2", out)
+        self.assertIn(id1, out)
+        self.assertNotIn(id2, out)
 
     def test_before_b(self):
-        """Verify start.before:2009-05-01 yields '1' and '2'"""
+        """Verify start.before:2009-05-01 yields both tasks"""
+        id1, id2 = self.t._task_ids[0], self.t._task_ids[1]
         code, out, err = self.t("start.before:2009-05-01 _ids")
-        self.assertIn("1", out)
-        self.assertIn("2", out)
+        self.assertIn(id1, out)
+        self.assertIn(id2, out)
 
     def test_after_a(self):
-        """Verify start.after:2008-12-01 yields '1' and '2'"""
+        """Verify start.after:2008-12-01 yields both tasks"""
+        id1, id2 = self.t._task_ids[0], self.t._task_ids[1]
         code, out, err = self.t("start.after:2008-12-01 _ids")
-        self.assertIn("1", out)
-        self.assertIn("2", out)
+        self.assertIn(id1, out)
+        self.assertIn(id2, out)
 
     def test_after_b(self):
-        """Verify start.after:2009-01-01 yields '2'"""
+        """Verify start.after:2009-01-01 yields second task"""
+        id1, id2 = self.t._task_ids[0], self.t._task_ids[1]
         code, out, err = self.t("start.after:2009-01-01 _ids")
-        self.assertNotIn("1", out)
-        self.assertIn("2", out)
+        self.assertNotIn(id1, out)
+        self.assertIn(id2, out)
 
 
 class TestBy(TestCase):

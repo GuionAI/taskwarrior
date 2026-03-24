@@ -48,20 +48,12 @@ else()
   add_subdirectory(${CMAKE_SOURCE_DIR}/src/taskchampion-cpp/corrosion)
 endif()
 
-option (ENABLE_TLS_NATIVE_ROOTS "Use the system's TLS root certificates" ON)
-
-if (ENABLE_TLS_NATIVE_ROOTS)
-  message ("Enabling native TLS roots")
-  set(TASKCHAMPION_FEATURES "tls-native-roots")
-endif (ENABLE_TLS_NATIVE_ROOTS)
-
 # Import taskchampion-lib as a CMake library. This implements the Rust side of
 # the cxxbridge, and depends on the `taskchampion` crate.
 corrosion_import_crate(
   MANIFEST_PATH "${CMAKE_SOURCE_DIR}/Cargo.toml"
   LOCKED
-  CRATES "taskchampion-lib"
-  FEATURES "${TASKCHAMPION_FEATURES}")
+  CRATES "taskchampion-lib")
 
 # Set up `taskchampion-cpp`, the C++ side of the bridge.
 corrosion_add_cxxbridge(taskchampion-cpp

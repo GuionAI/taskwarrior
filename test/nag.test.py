@@ -43,6 +43,9 @@ class TestNagging(TestCase):
         # re-created for each individual test
         self.t = Task()
         self.t.config("nag", "NAG")
+        # Suppress "Configuration override rc.nag:NAG" in stderr so that
+        # assertNotIn("NAG", err) checks work correctly.
+        self.t.config("verbose", "blank,label,new-id,affected,footnote,edit,new-uuid,project,special")
 
     def test_nagging(self):
         """Verify that nagging works when tasks are done in the 'wrong' order"""

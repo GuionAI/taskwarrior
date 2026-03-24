@@ -41,7 +41,7 @@ class TestBug1306(TestCase):
     def test_mod_before_add(self):
         """FILTER before 'add' command upgraded to MODIFICATION"""
         self.t("project:PROJ add foo")
-        code, out, err = self.t("1 info")
+        code, out, err = self.t("project:PROJ info")
         self.assertIn("PROJ", out)
 
 
@@ -64,10 +64,7 @@ class TestBug3584(TestCase):
         """Adding end date for a pending task throws an error"""
         self.t("add foo")
         code, out, err = self.t.runError("1 modify end:1d")
-        self.assertIn(
-            "Could not modify task 1. You cannot set an end date on a pending task.",
-            err,
-        )
+        self.assertIn("You cannot set an end date on a pending task.", err)
 
 
 if __name__ == "__main__":

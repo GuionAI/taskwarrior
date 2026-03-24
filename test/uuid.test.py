@@ -65,7 +65,7 @@ class TestUUID(TestCase):
     def test_uuid_modify_pending(self):
         """Modify with UUID + report pending"""
         self.t("9deed7ca-843d-4259-b2c4-40ce73e8e4f3 modify ONE")
-        self.t("2 modify TWO")
+        self.t("0f4c83d2-552f-4108-ae3f-ccc7959f84a3 modify TWO")
         code, out, err = self.t("list")
 
         self.assertIn("ONE", out)
@@ -187,7 +187,7 @@ class TestBug954(TestCase):
         """954: Verify deletion using extant UUID"""
         code, out, err = self.t("_get 1.uuid")
         code, out, err = self.t(out.strip() + " delete", input="y\n")
-        self.assertIn("Deleting task 1 'foo'", out)
+        self.assertRegex(out, r"Deleting task [0-9a-f]+ 'foo'")
 
     def test_deletion_by_missing_uuid(self):
         """954: Verify deletion using missing UUID"""

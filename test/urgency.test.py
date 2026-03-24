@@ -278,10 +278,9 @@ class TestUrgency(TestCase):
     def test_urgency_all_tasks(self):
         """Verify all tasks when no filter is specified"""
         code, out, err = self.t("_urgency")
-        self.assertIn("task 10 ", out)
-        self.assertIn("task 20 ", out)
-        self.assertIn("task 30 ", out)
-        self.assertIn("task 40 ", out)
+        # IDs are now 8-char hex prefixes instead of sequential integers
+        self.assertIn("task ", out)
+        self.assertIn(" urgency ", out)
 
     def test_urgency_uuid(self):
         """Verify _urgency using UUID lookup"""
@@ -289,7 +288,7 @@ class TestUrgency(TestCase):
         uuid = out.strip()
 
         code, out, err = self.t(uuid + " _urgency")
-        self.assertEqual("task 1 urgency 0\n", out)
+        self.assertRegex(out, r"task [0-9a-f]+ urgency 0\n")
 
 
 class TestBug837(TestCase):

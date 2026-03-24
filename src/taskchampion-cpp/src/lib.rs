@@ -150,12 +150,6 @@ mod ffi {
         /// Get the number of (un-synchronized) undo points in storage.
         fn num_undo_points(&mut self) -> Result<usize>;
 
-        /// Rebuild the working set.
-        fn rebuild_working_set(&mut self, renumber: bool) -> Result<()>;
-
-        /// Get the working set for this replica.
-        fn working_set(&mut self) -> Result<Box<WorkingSet>>;
-
         /// Build a TreeMap from all tasks in this replica.
         fn tree_map(&mut self) -> Result<Box<TreeMapWrapper>>;
     }
@@ -221,33 +215,6 @@ mod ffi {
     struct PropValuePair {
         prop: String,
         value: String,
-    }
-
-    // --- WorkingSet
-
-    extern "Rust" {
-        type WorkingSet;
-
-        /// Get the "length" of the working set: the total number of uuids in the set.
-        fn len(&self) -> usize;
-
-        /// Get the largest index in the working set, or zero if the set is empty.
-        fn largest_index(&self) -> usize;
-
-        /// True if the length is zero
-        fn is_empty(&self) -> bool;
-
-        /// Get the uuid with the given index, if any exists. Returns the nil UUID if
-        /// there is no task at that index.
-        fn by_index(&self, index: usize) -> Uuid;
-
-        /// Get the index for the given uuid, or zero if it is not in the working set.
-        fn by_uuid(&self, uuid: Uuid) -> usize;
-
-        /// Get the entire working set, as a vector indexed by each task's id. For example, the
-        /// UUID for task 5 will be at `all_uuids()[5]`. All elements of the vector not corresponding
-        /// to a task contain the nil UUID.
-        fn all_uuids(&self) -> Vec<Uuid>;
     }
 
     // --- UuidStringPair
@@ -637,14 +604,6 @@ impl Replica {
         rt().block_on(async { Ok(self.0.num_undo_points().await?) })
     }
 
-    fn rebuild_working_set(&mut self, renumber: bool) -> Result<(), CppError> {
-        rt().block_on(async { Ok(self.0.rebuild_working_set(renumber).await?) })
-    }
-
-    fn working_set(&mut self) -> Result<Box<WorkingSet>, CppError> {
-        rt().block_on(async { Ok(Box::new(self.0.working_set().await?.into())) })
-    }
-
     fn tree_map(&mut self) -> Result<Box<TreeMapWrapper>, CppError> {
         rt().block_on(async {
             let arc = self.0.tree_map().await?;
@@ -759,46 +718,6 @@ impl TaskData {
 
     fn delete_task(&mut self, ops: &mut Vec<Operation>) {
         self.0.delete(operations_ref(ops))
-    }
-}
-
-// --- WorkingSet
-
-struct WorkingSet(tc::WorkingSet);
-
-impl From<tc::WorkingSet> for WorkingSet {
-    fn from(task: tc::WorkingSet) -> Self {
-        WorkingSet(task)
-    }
-}
-
-impl WorkingSet {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn largest_index(&self) -> usize {
-        self.0.largest_index()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn by_index(&self, index: usize) -> ffi::Uuid {
-        self.0.by_index(index).unwrap_or_else(tc::Uuid::nil).into()
-    }
-
-    fn by_uuid(&self, uuid: ffi::Uuid) -> usize {
-        self.0.by_uuid(uuid.into()).unwrap_or(0)
-    }
-
-    fn all_uuids(&self) -> Vec<ffi::Uuid> {
-        let mut res = vec![tc::Uuid::nil().into(); self.0.largest_index() + 1];
-        for (i, uuid) in self.0.iter() {
-            res[i] = uuid.into();
-        }
-        res
     }
 }
 
@@ -1124,36 +1043,4 @@ mod test {
         );
     }
 
-    // PowerSync does not use task numbering; working set is not meaningful.
-    // rebuild_working_set panics on empty working set in current TCH — tracked in TCH issue.
-    #[test]
-    #[ignore]
-    fn working_set() {
-        cxx::let_cxx_string!(status = "status");
-        cxx::let_cxx_string!(pending = "pending");
-        cxx::let_cxx_string!(completed = "completed");
-        let (uuid1, uuid2, uuid3) = (uuid_v4(), uuid_v4(), uuid_v4());
-
-        let mut rep = test_replica();
-
-        let mut operations = new_operations();
-        let mut t = create_task(uuid1, &mut operations);
-        t.update(&status, &pending, &mut operations);
-        rep.commit_operations(operations).unwrap();
-
-        let mut operations = new_operations();
-        let mut t = create_task(uuid2, &mut operations);
-        t.update(&status, &pending, &mut operations);
-        rep.commit_operations(operations).unwrap();
-
-        let mut operations = new_operations();
-        let mut t = create_task(uuid3, &mut operations);
-        t.update(&status, &completed, &mut operations);
-        rep.commit_operations(operations).unwrap();
-
-        // PowerSync does not use task numbering — working set methods are no-ops.
-        // Just verify the calls succeed without error.
-        rep.rebuild_working_set(false).unwrap();
-        rep.working_set().unwrap();
-    }
 }

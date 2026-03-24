@@ -42,7 +42,6 @@ CmdUrgency::CmdUrgency() {
   _description = "Displays the urgency measure of a task";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;

@@ -47,13 +47,13 @@ class TestHyphenation(TestCase):
         """Split on space instead of hyphenating"""
         self.t("add AAAAAAAAAA BBBBBBBBBB")
         code, out, err = self.t("ls")
-        self.assertIn("1 AAAAAAAAAA\n", out)
+        self.assertRegex(out, r"[0-9a-f]+ AAAAAAAAAA")
 
     def test_hyphenation(self):
         """Verify hyphenation in the absence of white space"""
         self.t("add AAAAAAAAAABBBBBBBBBBCCCCCCCCCC")
         code, out, err = self.t("ls")
-        self.assertIn(" 1 AAAAAAAAAABBBBBB-\n", out)
+        self.assertRegex(out, r"[0-9a-f]+ AAAAAAAAAABBBBBB-")
 
 
 class TestBug804(TestCase):
@@ -74,13 +74,13 @@ class TestBug804(TestCase):
 
         # List with rc.hyphenate=on.
         code, out, err = self.t("rc.defaultwidth:40 rc.hyphenate:on unittest")
-        self.assertIn("vwx-\n", out)
-        self.assertIn("tuv-\n", out)
+        self.assertIn("qr-\n", out)
+        self.assertIn("ij-\n", out)
 
         # List with rc.hyphenate=off.
         code, out, err = self.t("rc.defaultwidth:40 rc.hyphenate:off unittest")
-        self.assertIn("vwxy\n", out)
-        self.assertIn("uvwx\n", out)
+        self.assertIn("pqrs\n", out)
+        self.assertIn("hijkl\n", out)
 
 
 if __name__ == "__main__":

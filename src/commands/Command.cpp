@@ -295,7 +295,6 @@ Command::Command()
       _read_only(true),
       _displays_id(true),
       _needs_confirm(false),
-      _needs_gc(true),
       _uses_context(false),
       _accepts_filter(false),
       _accepts_modifications(false),
@@ -319,9 +318,6 @@ bool Command::read_only() const { return _read_only; }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool Command::displays_id() const { return _displays_id; }
-
-////////////////////////////////////////////////////////////////////////////////
-bool Command::needs_gc() const { return _needs_gc; }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool Command::uses_context() const { return _uses_context; }

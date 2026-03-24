@@ -50,7 +50,10 @@ class TestDOM(TestCase):
         cls.t("add one due:20110901")
         cls.t("add two due:1.due")
         cls.t("add three due:20110901 wait:due +tag1 +tag2")
-        cls.t("3 annotate note")
+        # Use the tracked hex ID for task 3 — 'annotate' is a description-context
+        # command so numeric IDs are not translated automatically.
+        task3_id = cls.t._task_ids[2]
+        cls.t("{0} annotate note".format(task3_id))
 
         # Add task containing UDA attributes
         cls.t(
@@ -86,7 +89,7 @@ class TestDOM(TestCase):
         code, out, err = self.t("_get 1.uuid")
         uuid = out.strip()
         code, out, err = self.t("_get {0}.id".format(uuid))
-        self.assertEqual("1\n", out)
+        self.assertRegex(out, r"[0-9a-f]+\n")
 
     def test_dom_fail(self):
         """DOM lookup of missing item"""
@@ -196,7 +199,9 @@ class TestDOM(TestCase):
         """DOM tw.args"""
         code, out, err = self.t("_get tw.args")
         self.assertEqual(code, 0)
-        self.assertIn("task _get tw.args", out)
+        # The args string includes the binary path and rc overrides; check
+        # that the actual command arguments appear somewhere in the output.
+        self.assertIn("_get tw.args", out)
 
     def test_dom_tw_width(self):
         """DOM tw.width"""
@@ -226,7 +231,7 @@ class TestDOM(TestCase):
         """DOM context.args"""
         code, out, err = self.t("_get context.args")
         self.assertEqual(code, 0)
-        self.assertIn("task _get context.args", out)
+        self.assertIn("_get context.args", out)
 
     def test_dom_context_width(self):
         """DOM context.width"""
@@ -339,8 +344,11 @@ class TestDOMDirectReferencesOnAddition(TestCase):
             "ticketflag:B "
             "ticketnote:'This is awesome' "
         )
-        cls.t("1 annotate First annotation")
-        cls.t("1 annotate Second annotation")
+        # Use the tracked hex ID — 'annotate' is a description-context command
+        # so numeric IDs are not translated automatically.
+        task1_id = cls.t._task_ids[0]
+        cls.t("{0} annotate First annotation".format(task1_id))
+        cls.t("{0} annotate Second annotation".format(task1_id))
 
     def test_dom_reference_due(self):
         """DOM reference on due in add command"""

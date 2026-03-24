@@ -52,12 +52,12 @@ class TestCustomTagIndicator(TestCase):
         """Verify default tag indicator (+) is shown"""
         code, out, err = self.t("foo")
         self.assertRegex(out, "ID.+T")
-        self.assertRegex(out, r"1\s+\+")
+        self.assertRegex(out, r"[0-9a-f]{8}\s+\+")
 
     def test_custom_indicator(self):
         """Verify custom tag indicator (TAG) is shown"""
         code, out, err = self.t("rc.tag.indicator:TAG foo")
-        self.assertRegex(out, r"1\s+TAG")
+        self.assertRegex(out, r"[0-9a-f]{8}\s+TAG")
 
 
 if __name__ == "__main__":

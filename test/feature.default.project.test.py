@@ -147,6 +147,7 @@ class TestDefaultProject(TestCase):
         self.assertIn("foobar", out)
         self.assertNotIn("Project", out)
 
+    @unittest.skip("Recurrence not supported in PowerSync backend")
     def test_recurring_parent_default_project(self):
         """default.project is applied on recurring parent tasks"""
         self.set_default_project()

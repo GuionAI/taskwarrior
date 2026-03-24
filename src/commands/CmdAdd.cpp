@@ -40,7 +40,6 @@ CmdAdd::CmdAdd() {
   _description = "Adds a new task";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = true;
   _accepts_filter = false;
   _accepts_modifications = true;

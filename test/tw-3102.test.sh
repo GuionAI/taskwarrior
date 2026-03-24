@@ -2,11 +2,12 @@
 . bash_tap_tw.sh
 
 task add modtest modified:yesterday
-old_modified=`task _get 1.modified`
+ID=$(task_id 1)
+old_modified=`task _get ${ID}.modified`
 echo $old_modified
 
-task 1 start
-new_modified=`task _get 1.modified`
+task $ID start
+new_modified=`task _get ${ID}.modified`
 echo $new_modified
 
 # `task start` should have updated modified

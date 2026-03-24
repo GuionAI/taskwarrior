@@ -43,7 +43,6 @@ CmdDuplicate::CmdDuplicate() {
   _description = "Duplicates the specified tasks";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = true;
@@ -71,7 +70,7 @@ int CmdDuplicate::execute(std::string&) {
   for (auto& task : filtered) {
     // Duplicate the specified task.
     Task dup(task);
-    dup.id = 0;               // Reset, and TDB2::add will set.
+    dup.id = "";              // Reset, and TDB2::add will set.
     dup.set("uuid", uuid());  // Needs a new UUID.
     dup.remove("start");      // Does not inherit start date.
     dup.remove("end");        // Does not inherit end date.

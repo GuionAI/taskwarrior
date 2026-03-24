@@ -116,7 +116,7 @@ bool Task::operator!=(const Task& other) { return !(*this == other); }
 
 ////////////////////////////////////////////////////////////////////////////////
 Task::Task(const std::string& input) {
-  id = 0;
+  id = "";
   urgency_value = 0.0;
   recalc_urgency = true;
   is_blocked = false;
@@ -128,7 +128,7 @@ Task::Task(const std::string& input) {
 
 ////////////////////////////////////////////////////////////////////////////////
 Task::Task(const json::object* obj) {
-  id = 0;
+  id = "";
   urgency_value = 0.0;
   recalc_urgency = true;
   is_blocked = false;
@@ -140,7 +140,7 @@ Task::Task(const json::object* obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 Task::Task(rust::Box<tc::TaskData> obj) {
-  id = 0;
+  id = "";
   urgency_value = 0.0;
   recalc_urgency = true;
   is_blocked = false;
@@ -184,8 +184,8 @@ std::string Task::statusToText(Task::status s) {
 // Returns a proper handle to the task. Tasks should not be referenced by UUIDs
 // as long as they have non-zero ID.
 const std::string Task::identifier(bool shortened /* = false */) const {
-  if (id != 0)
-    return format(id);
+  if (!id.empty())
+    return id;
   else if (shortened)
     return get("uuid").substr(0, 8);
   else
@@ -730,7 +730,7 @@ void Task::parseTC(rust::Box<tc::TaskData> task) {
   }
 
   data["uuid"] = static_cast<std::string>(task->get_uuid().to_string());
-  id = Context::getContext().tdb2.id(data["uuid"]);
+  id = (data["uuid"].length() >= 8) ? data["uuid"].substr(0, 8) : "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -779,7 +779,7 @@ std::string Task::composeJSON(bool decorate /*= false*/) {
 
   // ID inclusion is optional, but not a good idea, because it remains correct
   // only until the next gc.
-  if (decorate) out << "\"id\":" << id << ',';
+  if (decorate) out << "\"id\":\"" << id << "\",";
 
   // First the non-annotations.
   int attributes_written = 0;
@@ -964,25 +964,6 @@ void Task::setAnnotations(const std::map<std::string, std::string>& annotations)
   recalc_urgency = true;
 }
 
-#ifdef PRODUCT_TASKWARRIOR
-////////////////////////////////////////////////////////////////////////////////
-void Task::addDependency(int depid) {
-  // Check that id is resolvable.
-  std::string uuid = Context::getContext().tdb2.uuid(depid);
-  if (uuid == "") throw format("Could not create a dependency on task {1} - not found.", depid);
-
-  // the addDependency(&std::string) overload will check this, too, but here we
-  // can give an more natural error message containing the id the user
-  // provided.
-  if (hasDependency(uuid)) {
-    Context::getContext().footnote(format("Task {1} already depends on task {2}.", id, depid));
-    return;
-  }
-
-  addDependency(uuid);
-}
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////
 void Task::addDependency(const std::string& uuid) {
   if (uuid == get("uuid")) throw std::string("A task cannot be dependent on itself.");
@@ -1010,17 +991,6 @@ void Task::addDependency(const std::string& uuid) {
 
 #ifdef PRODUCT_TASKWARRIOR
 ////////////////////////////////////////////////////////////////////////////////
-void Task::removeDependency(int id) {
-  std::string uuid = Context::getContext().tdb2.uuid(id);
-
-  // The removeDependency(std::string&) method will check this too, but here we
-  // can give a more natural error message containing the id provided by the user
-  if (uuid == "" || !has(dep2Attr(uuid)))
-    throw format("Could not delete a dependency on task {1} - not found.", id);
-  removeDependency(uuid);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void Task::removeDependency(const std::string& uuid) {
   auto depattr = dep2Attr(uuid);
   if (has(depattr))
@@ -1036,18 +1006,6 @@ void Task::removeDependency(const std::string& uuid) {
 bool Task::hasDependency(const std::string& uuid) const {
   auto depattr = dep2Attr(uuid);
   return has(depattr);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-std::vector<int> Task::getDependencyIDs() const {
-  std::vector<int> ids;
-  for (auto& attr : all()) {
-    if (!isDepAttr(attr)) continue;
-    auto dep = attr2Dep(attr);
-    ids.push_back(Context::getContext().tdb2.id(dep));
-  }
-
-  return ids;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1151,7 +1109,6 @@ bool Task::hasTag(const std::string& tag) const {
 #ifdef PRODUCT_TASKWARRIOR
     if (tag == "UDA") return is_udaPresent();
     if (tag == "ORPHAN") return is_orphanPresent();
-    if (tag == "LATEST") return id == Context::getContext().tdb2.latest_id();
 #endif
     if (tag == "PROJECT") return has("project");
     if (tag == "PRIORITY") return has("priority");

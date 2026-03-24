@@ -94,9 +94,9 @@ class TestUDAOrphans(TestCase):
         self.t("add four +test depends:3")
         self.t("4 annotate annotation content")
 
-        # Only the first task should be identified as orphan
+        # Only the first task should be identified as orphan (shown as hex UUID prefix)
         code, out, err = self.t("+ORPHAN ids")
-        self.assertEqual("1", out.strip())
+        self.assertRegex(out.strip(), r"^[0-9a-f]{8}$")
 
         # Only the first task should be identified as orphan
         code, out, err = self.t("udas")

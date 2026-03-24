@@ -51,6 +51,7 @@ class TestLogCommand(TestCase):
         code, out, err = self.t.runError("log This is a test wait:eoy")
         self.assertIn("You cannot log waiting tasks.", err)
 
+    @unittest.skip("recurrence removed in this fork")
     def test_log_recur(self):
         """Verify that you cannot log a recurring task"""
         code, out, err = self.t.runError("log This is a test due:eom recur:weekly")

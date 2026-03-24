@@ -42,7 +42,6 @@ CmdPurge::CmdPurge() {
   _read_only = false;
   _displays_id = false;
   _needs_confirm = true;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;

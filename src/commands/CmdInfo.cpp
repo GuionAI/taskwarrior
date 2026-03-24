@@ -58,7 +58,6 @@ CmdInfo::CmdInfo() {
   //
   // Once the test suite is completely modified, this can be corrected.
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -105,7 +104,7 @@ int CmdInfo::execute(std::string& output) {
     // id
     auto row = view.addRow();
     view.set(row, 0, "ID");
-    view.set(row, 1, (task.id ? format(task.id) : "-"));
+    view.set(row, 1, (!task.id.empty() ? task.id : "-"));
 
     std::string status = Lexer::ucFirst(Task::statusToText(task.getStatus()));
 
@@ -274,7 +273,6 @@ int CmdInfo::execute(std::string& output) {
       if (task.hasTag("DUE")) virtualTags += "DUE ";
       if (task.hasTag("DUETODAY")) virtualTags += "DUETODAY ";  // 2016-03-29: Deprecated in 2.6.0
       if (task.hasTag("INSTANCE")) virtualTags += "INSTANCE ";
-      if (task.hasTag("LATEST")) virtualTags += "LATEST ";
       if (task.hasTag("MONTH")) virtualTags += "MONTH ";
       if (task.hasTag("ORPHAN")) virtualTags += "ORPHAN ";
       if (task.hasTag("OVERDUE")) virtualTags += "OVERDUE ";

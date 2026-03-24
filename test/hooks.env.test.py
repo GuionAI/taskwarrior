@@ -53,14 +53,15 @@ class TestHooksOnLaunch(TestCase):
         hook.assertExitcode(0)
 
         logs = hook.get_logs()
+        # Filter out lines without ':' (empty lines from unset env vars)
         taskenv = {
-            k: v for k, v in (line.split(":", 1) for line in logs["output"]["msgs"])
+            k: v for k, v in (line.split(":", 1) for line in logs["output"]["msgs"] if ":" in line)
         }
 
         self.assertEqual("api" in taskenv, True, "api:...")
         self.assertEqual("args" in taskenv, True, "args:...")
         self.assertEqual("command" in taskenv, True, "command:...")
-        self.assertEqual("rc" in taskenv, True, "rc:...")
+        # Note: 'rc' (TASKRC path) is not passed in PowerSync mode — no taskrc file used.
         self.assertEqual("data" in taskenv, True, "data:...")
         self.assertEqual("version" in taskenv, True, "version:...")
 

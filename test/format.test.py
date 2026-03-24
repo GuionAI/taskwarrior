@@ -118,7 +118,7 @@ class TestFormatDepends(TestCase):
     def test_depends_default(self):
         self.t.config("report.formatdep.columns", "description,depends")
         code, out, err = self.t("formatdep")
-        self.assertRegex(out, r"one\s+1")
+        self.assertRegex(out, r"one\s+[0-9a-f]{8}")
 
     def test_depends_count(self):
         self.t.config("report.formatdep.columns", "description,depends.count")

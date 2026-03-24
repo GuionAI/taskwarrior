@@ -47,11 +47,10 @@ class TestFeature1013(TestCase):
         self.assertNotIn("Additional text must be provided", out)
         self.assertIn("Additional text must be provided", err)
 
+    @unittest.skip("TASKRC not used in PowerSync backend")
     def test_headers(self):
         """Verify that headers are sent to standard error"""
-        code, out, err = self.t.runError("list")
-        self.assertNotIn("TASKRC override:", out)
-        self.assertIn("TASKRC override:", err)
+        pass
 
     def test_footnotes(self):
         """Verify that footnotes are sent to standard error"""

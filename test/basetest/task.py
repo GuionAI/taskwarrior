@@ -2,11 +2,13 @@ import atexit
 import errno
 import json
 import os
+import re
 import shlex
 import shutil
 import sqlite3
 import tempfile
 import unittest
+import warnings
 from .exceptions import CommandError
 from .hooks import Hooks
 from .utils import (
@@ -55,6 +57,9 @@ class Task(object):
         }
 
         self._init_test_db()
+
+        # Track task hex IDs in creation order for numeric-to-hex translation
+        self._task_ids = []
 
         # Ensure any instance is properly destroyed at session end
         atexit.register(lambda: self.destroy())
@@ -148,7 +153,7 @@ class Task(object):
         os.makedirs(hooks_dir, exist_ok=True)
         self.config("hooks", "1")
         self.config("hooks.location", hooks_dir)
-        self.hooks = Hooks(hooks_dir)
+        self.hooks = Hooks(self.datadir)
 
     def reset_env(self):
         """Set a new environment derived from the one used to launch the test"""
@@ -204,7 +209,145 @@ class Task(object):
 
     @property
     def latest(self):
-        return self.export_one("+LATEST")
+        """Return the most recently added task.
+
+        Uses the tracked creation order from add/log commands. Falls back to
+        sorting by entry timestamp if no tracked IDs are available.
+        """
+        if self._task_ids:
+            # Use the last tracked task ID (deterministic, insertion-order)
+            last_id = self._task_ids[-1]
+            return self.export_one(last_id)
+        # Fallback: sort by entry timestamp
+        tasks = self.export()
+        if not tasks:
+            raise ValueError("No tasks found")
+        tasks.sort(key=lambda t: t.get("entry", ""), reverse=True)
+        return tasks[0]
+
+    def add_task(self, args=""):
+        """Add a task and return its 8-char hex ID.
+
+        Usage:
+            task_id = t.add_task("buy milk due:tomorrow")
+            t("{0} done".format(task_id))
+        """
+        code, out, err = self.runSuccess("add " + args)
+        m = re.search(r"Created task ([0-9a-f]{8})\.", out)
+        if m:
+            return m.group(1)
+        raise ValueError("Could not parse task ID from add output: {0!r}".format(out))
+
+    def _track_add_output(self, out):
+        """Parse 'Created task XXXXXXXX.' from add/log/import output and track IDs."""
+        for m in re.finditer(r"Created task ([0-9a-f]{8})\.", out):
+            self._task_ids.append(m.group(1))
+
+    def _track_add_from_db(self, known_ids_set):
+        """Find pending task IDs added since before the command and append them to _task_ids.
+
+        Excludes completed/deleted tasks so that 'log' commands (which create
+        completed tasks) do not shift the insertion-order index used by tests.
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            rows = conn.execute(
+                "SELECT SUBSTR(id, 1, 8) FROM tc_tasks_data "
+                "WHERE user_id = ? AND status NOT IN ('completed', 'deleted') "
+                "ORDER BY entry_at",
+                (TEST_USER_ID,),
+            ).fetchall()
+            conn.close()
+            all_ids = [r[0] for r in rows]
+        except sqlite3.Error as e:
+            warnings.warn(f"_track_add_from_db: DB query failed ({e}); numeric ID translation may be broken")
+            all_ids = []
+        for hex_id in all_ids:
+            if hex_id not in known_ids_set and hex_id not in self._task_ids:
+                self._task_ids.append(hex_id)
+
+    def _translate_numeric_ids(self, args):
+        """Translate numeric sequential IDs to hex UUID prefixes in test args.
+
+        Legacy tests use '1', '2', '3' to refer to the first, second, third
+        task added. This method translates those to the actual 8-char hex IDs
+        stored in self._task_ids so existing tests work without changes.
+
+        Also translates DOM references like '1.description' to '<hex>.description'.
+
+        Commands that take descriptions (add/log/import/annotate/prepend/append)
+        are NOT translated since their arguments are task text, not ID references.
+        """
+        if not args or not self._task_ids:
+            return args
+        # For description-context commands, only translate key:value DOM refs,
+        # not standalone integers (which are part of the description text).
+        # 'add', 'log', 'import' never take a preceding task ID — suppress translation.
+        # 'annotate', 'prepend', 'append' take a task ID first (e.g. '1 annotate note')
+        # so translation must remain active for the leading integer.
+        _no_id_cmds = {"add", "log", "import"}
+        description_only = any(a in _no_id_cmds for a in args)
+
+        def _translate_int(n):
+            """Translate 1-based integer n to its hex task ID, or return None."""
+            if 0 < n <= len(self._task_ids):
+                return self._task_ids[n - 1]
+            return None
+
+        def _translate_id_list(value):
+            """Translate comma-separated integer IDs to hex IDs (for depends:N,M).
+
+            Handles both positive (add dep) and negative (remove dep) integers.
+            E.g. '-3' -> '-<hex>' for dep removal syntax.
+            """
+            parts = value.split(",")
+            new_parts = []
+            for p in parts:
+                # Positive integer: add dep
+                if re.match(r"^\d+$", p):
+                    hex_id = _translate_int(int(p))
+                    new_parts.append(hex_id if hex_id else p)
+                # Negative integer: dep removal (-N -> -hex)
+                elif re.match(r"^-\d+$", p):
+                    hex_id = _translate_int(int(p[1:]))
+                    new_parts.append("-" + hex_id if hex_id else p)
+                else:
+                    new_parts.append(p)
+            return ",".join(new_parts)
+
+        translated = list(args)
+        for i, token in enumerate(translated):
+            # Pure positive integer within ID range: treat as sequential task ID
+            # (skip for description-context commands where integers are literal text)
+            if not description_only and re.match(r"^\d+$", token):
+                n = int(token)
+                hex_id = _translate_int(n)
+                if hex_id:
+                    translated[i] = hex_id
+            # Comma-separated integer ID list: "1,2,3" -> "hex1,hex2,hex3"
+            elif not description_only and re.match(r"^\d+(?:,\d+)+$", token):
+                translated[i] = _translate_id_list(token)
+            # DOM reference starting with integer: "1.description" -> "<hex>.description"
+            elif not description_only and re.match(r"^\d+\.[a-zA-Z_]", token):
+                m = re.match(r"^(\d+)(\..*)", token)
+                if m:
+                    hex_id = _translate_int(int(m.group(1)))
+                    if hex_id:
+                        translated[i] = hex_id + m.group(2)
+            # key:value pairs where value may be a task ID list or DOM reference
+            elif ":" in token and not token.startswith("rc."):
+                key, value = token.split(":", 1)
+                if key.lstrip("-") in ("depends", "dep"):
+                    # dep:/depends: always translate task IDs (even in add context)
+                    translated[i] = key + ":" + _translate_id_list(value)
+                elif re.match(r"^\d+\.[a-zA-Z_]", value):
+                    # DOM reference as value: "due:1.due" -> "due:hexid.due"
+                    m = re.match(r"^(\d+)(\..*)", value)
+                    if m:
+                        hex_id = _translate_int(int(m.group(1)))
+                        if hex_id:
+                            translated[i] = key + ":" + hex_id + m.group(2)
+        return translated
 
     @staticmethod
     def _split_string_args_if_string(args):
@@ -243,6 +386,15 @@ class Task(object):
         command = self._command[:] + self._rc_override_args()
 
         args = self._split_string_args_if_string(args)
+        args = self._translate_numeric_ids(args)
+
+        # Snapshot existing task IDs before running add/duplicate/import
+        # Note: 'log' creates completed tasks which had no working-set IDs in
+        # old TW, so we do NOT track them in _task_ids.
+        _write_cmds = {"add", "duplicate", "import"}
+        is_add_or_log = args and any(a in _write_cmds for a in args)
+        known_ids_set = set(self._task_ids) if is_add_or_log else None
+
         command.extend(args)
 
         output = run_cmd_wait_nofail(
@@ -251,6 +403,14 @@ class Task(object):
 
         if output[0] != 0:
             raise CommandError(command, *output)
+
+        # Track IDs of newly created tasks
+        if is_add_or_log:
+            if output[1] and re.search(r"Created task [0-9a-f]{8}\.", output[1]):
+                self._track_add_output(output[1])
+            else:
+                # Verbose output suppressed; query DB for newly added tasks
+                self._track_add_from_db(known_ids_set)
 
         return output
 
@@ -276,6 +436,7 @@ class Task(object):
         command = self._command[:] + self._rc_override_args()
 
         args = self._split_string_args_if_string(args)
+        args = self._translate_numeric_ids(args)
         command.extend(args)
 
         output = run_cmd_wait_nofail(

@@ -77,7 +77,7 @@ class Task {
   enum dateState { dateNotDue, dateAfterToday, dateLaterToday, dateEarlierToday, dateBeforeToday };
 
   // Public data.
-  int id{0};
+  std::string id{};
   float urgency_value{0.0};
   bool recalc_urgency{true};
   bool is_blocked{false};
@@ -145,15 +145,10 @@ class Task {
   void addAnnotation(const std::string&);
   void removeAnnotations();
 
-#ifdef PRODUCT_TASKWARRIOR
-  void addDependency(int);
-#endif
   void addDependency(const std::string&);
 #ifdef PRODUCT_TASKWARRIOR
-  void removeDependency(int);
   void removeDependency(const std::string&);
   bool hasDependency(const std::string&) const;
-  std::vector<int> getDependencyIDs() const;
   std::vector<std::string> getDependencyUUIDs() const;
   std::vector<Task> getBlockedTasks() const;
   std::vector<Task> getDependencyTasks() const;

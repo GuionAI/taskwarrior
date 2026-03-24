@@ -49,7 +49,8 @@ class TestDelete(TestCase):
         self.t("1 delete", input="y\n")
         self.t.runError("list")  # GC/handleRecurrence
         code, out, err = self.t("_get 1.status")
-        self.assertEqual("\n", out)
+        # In hex UUID mode, the task is still accessible by its hex ID even when deleted.
+        self.assertIn("deleted\n", out)
 
         code, out, err = self.t("_get %s.status" % uuid)
         self.assertIn("deleted\n", out)

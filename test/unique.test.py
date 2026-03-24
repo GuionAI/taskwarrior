@@ -84,11 +84,10 @@ class TestUnique(TestCase):
     def test_unique_id(self):
         """Verify that unique id values are correctly counted"""
         code, out, err = self.t("_unique id")
-        self.assertIn("1", out)
-        self.assertIn("2", out)
-        self.assertIn("3", out)
-        self.assertNotIn("4", out)
-        self.assertNotIn("5", out)
+        # IDs are now 8-char hex prefixes; verify there are exactly 3 unique IDs
+        import re
+        hex_ids = re.findall(r"[0-9a-f]{8}", out)
+        self.assertEqual(len(hex_ids), 3)
 
 
 if __name__ == "__main__":

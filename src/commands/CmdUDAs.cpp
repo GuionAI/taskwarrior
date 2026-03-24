@@ -46,7 +46,6 @@ CmdUDAs::CmdUDAs() {
   _description = "Shows all the defined UDA details";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;
@@ -154,7 +153,6 @@ CmdCompletionUDAs::CmdCompletionUDAs() {
   _description = "Shows the defined UDAs for completion purposes";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

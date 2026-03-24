@@ -765,7 +765,6 @@ CmdBurndownMonthly::CmdBurndownMonthly() {
   _description = "Shows a graphical burndown chart, by month";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -797,7 +796,6 @@ CmdBurndownWeekly::CmdBurndownWeekly() {
   _description = "Shows a graphical burndown chart, by week";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;
@@ -829,7 +827,6 @@ CmdBurndownDaily::CmdBurndownDaily() {
   _description = "Shows a graphical burndown chart, by day";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;

@@ -45,7 +45,6 @@ CmdImportV2::CmdImportV2() {
   _description = "Imports Taskwarrior v2.x files";
   _read_only = false;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

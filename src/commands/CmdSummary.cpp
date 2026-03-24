@@ -47,7 +47,6 @@ CmdSummary::CmdSummary() {
   _description = "Shows a report of task status by project";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = true;
   _uses_context = true;
   _accepts_filter = true;
   _accepts_modifications = false;

@@ -10,9 +10,10 @@
 #   completed.data file.
 
 task add one
-task log two depends:1
+ID1=$(task_id 1)
+task log two depends:$ID1
 
 task /two/ export > JSON
 
-rm taskchampion.sqlite3
+reset_taskdb
 task import JSON

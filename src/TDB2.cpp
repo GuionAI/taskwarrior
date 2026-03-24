@@ -88,11 +88,8 @@ void TDB2::add(Task& task) {
 
   invalidate_cached_info();
 
-  // get the ID that was assigned to this task
-  auto id = working_set()->by_uuid(tcuuid);
-  if (id > 0) {
-    task.id = id;
-  }
+  // Assign the 8-char hex UUID prefix as the task ID.
+  task.id = (uuid.length() >= 8) ? uuid.substr(0, 8) : "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -197,14 +194,6 @@ rust::Box<tc::Replica>& TDB2::replica() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const rust::Box<tc::WorkingSet>& TDB2::working_set() {
-  if (!_working_set.has_value()) {
-    _working_set = replica()->working_set();
-  }
-  return _working_set.value();
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void TDB2::maybe_add_undo_point(rust::Vec<tc::Operation>& ops) {
   // Only add an UndoPoint if there are not yet any changes.
   if (changes.size() == 0) {
@@ -221,26 +210,7 @@ void TDB2::get_changes(std::vector<Task>& changes) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void TDB2::gc() {
-  Timer timer;
-
-  // Allowed as an override, but not recommended.
-  if (Context::getContext().config.getBoolean("gc")) {
-    replica()->rebuild_working_set(true);
-  }
-
-  Context::getContext().time_gc_us += timer.total_us();
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void TDB2::expire_tasks() { replica()->expire_tasks(); }
-
-////////////////////////////////////////////////////////////////////////////////
-// Latest ID is that of the last pending task.
-int TDB2::latest_id() {
-  auto& ws = working_set();
-  return (int)ws->largest_index();
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 const std::vector<Task> TDB2::all_tasks() {
@@ -283,13 +253,15 @@ const std::vector<Task> TDB2::pending_tasks() {
 const std::vector<Task> TDB2::completed_tasks() {
   if (!_completed_tasks) {
     auto all_tctasks = replica()->all_task_data();
-    auto& ws = working_set();
 
+    std::string status_key = "status";
     std::vector<Task> result;
     for (auto& maybe_tctask : all_tctasks) {
       auto tctask = maybe_tctask.take();
-      // if this task is _not_ in the working set, return it.
-      if (ws->by_uuid(tctask->get_uuid()) == 0) {
+      std::string status;
+      tctask->get(status_key, status);
+      // Include only explicitly completed or deleted tasks.
+      if (status == "completed" || status == "deleted") {
         result.push_back(Task(std::move(tctask)));
       }
     }
@@ -302,28 +274,6 @@ const std::vector<Task> TDB2::completed_tasks() {
 void TDB2::invalidate_cached_info() {
   _pending_tasks = std::nullopt;
   _completed_tasks = std::nullopt;
-  _working_set = std::nullopt;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Locate task by ID, wherever it is.
-bool TDB2::get(int id, Task& task) {
-  auto& ws = working_set();
-  const auto tcuuid = ws->by_index(id);
-  if (!tcuuid.is_nil()) {
-    std::string uuid = static_cast<std::string>(tcuuid.to_string());
-    // Load all pending tasks in order to get dependency data, and in particular
-    // `task.is_blocking` and `task.is_blocked`, set correctly.
-    std::vector<Task> pending = pending_tasks();
-    for (auto& pending_task : pending) {
-      if (pending_task.get("uuid") == uuid) {
-        task = pending_task;
-        return true;
-      }
-    }
-  }
-
-  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -399,22 +349,6 @@ const std::vector<Task> TDB2::descendants(const std::string& parent_uuid) {
 // Build a TreeMap from all tasks via the TCH bridge.
 rust::Box<tc::TreeMapWrapper> TDB2::tree_map() {
   return replica()->tree_map();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-std::string TDB2::uuid(int id) {
-  auto& ws = working_set();
-  auto uuid = ws->by_index(id);
-  if (uuid.is_nil()) {
-    return "";
-  }
-  return static_cast<std::string>(uuid.to_string());
-}
-
-////////////////////////////////////////////////////////////////////////////////
-int TDB2::id(const std::string& uuid) {
-  auto& ws = working_set();
-  return ws->by_uuid(tc::uuid_from_string(uuid));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

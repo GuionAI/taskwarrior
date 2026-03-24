@@ -55,7 +55,6 @@ CmdLegacyConfig::CmdLegacyConfig() {
   _description = "DEPRECATED: Use rc.<key>:<value> overrides instead";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;
@@ -76,7 +75,6 @@ CmdCompletionConfig::CmdCompletionConfig() {
   _description = "Lists all supported configuration variables, for completion purposes";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

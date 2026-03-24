@@ -49,7 +49,6 @@ CmdDiagnostics::CmdDiagnostics() {
   _description = "Platform, build and environment details";
   _read_only = true;
   _displays_id = false;
-  _needs_gc = false;
   _uses_context = false;
   _accepts_filter = false;
   _accepts_modifications = false;

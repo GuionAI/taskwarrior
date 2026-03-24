@@ -48,7 +48,9 @@ class TestCMD(TestCase):
         """default command"""
         self.t.config("verbose", "on")
         code, out, err = self.t()
-        self.assertIn("task list]", err)
+        # The debug output includes the binary path and rc overrides; just check
+        # that the 'list' command appears in the args shown in stderr.
+        self.assertIn(" list ", err)
 
     def test_info_command(self):
         """info command"""

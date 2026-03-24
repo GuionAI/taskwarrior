@@ -66,10 +66,10 @@ class TestAnnotate(TestCase):
         self.t("3 annotate baz1")
 
     def assertTasksExist(self, out):
-        self.assertIn("1 one", out)
-        self.assertIn("2 two", out)
-        self.assertIn("3 three", out)
-        self.assertIn("4 four", out)
+        self.assertRegex(out, r"[0-9a-f]{8}\s+one")
+        self.assertRegex(out, r"[0-9a-f]{8}\s+two")
+        self.assertRegex(out, r"[0-9a-f]{8}\s+three")
+        self.assertRegex(out, r"[0-9a-f]{8}\s+four")
         self.assertIn("4 tasks", out)
 
     def test_annotate(self):
@@ -172,19 +172,6 @@ class TestAnnotationPropagation(TestCase):
         """Test that an error is produced when annotating no tasks"""
         code, out, err = self.t.runError("999 annotate no way")
         self.assertIn("No tasks specified.", err)
-
-    def test_annotate_recurring(self):
-        """Test propagation of annotation to recurring siblings"""
-        self.t("add foo due:eom recur:weekly")
-        self.t("list")  # GC/handleRecurrence
-        self.t("2 annotate bar", input="y\n")
-        code, out, err = self.t("all rc.verbose:nothing")
-
-        code, out, err = self.t("_get 1.annotations.1.description")
-        self.assertEqual("bar\n", out)
-
-        code, out, err = self.t("_get 2.annotations.1.description")
-        self.assertEqual("bar\n", out)
 
 
 class TestAnnotation(TestCase):

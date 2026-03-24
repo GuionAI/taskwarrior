@@ -185,8 +185,11 @@ class TestHooksOnModify(TestCase):
         hookname = "on-modify-accept"
         self.t.hooks.add_default(hookname, log=True)
 
+        # Use the first 8 chars of the UUID as the hex task ID prefix.
+        hex_id = uuid[:8]
+
         # `task _get` shows the backslash-escape.
-        code, out, err = self.t(f"_get 1.description")
+        code, out, err = self.t(f"_get {hex_id}.description")
         self.assertEqual(out.strip(), r"tab\ttab")
 
         code, out, err = self.t(f"{uuid} append foo")
@@ -201,7 +204,7 @@ class TestHooksOnModify(TestCase):
         self.assertEqual(logs["output"]["msgs"][0], "FEEDBACK")
 
         # `task _get` still shows the backslash-escape.
-        code, out, err = self.t(f"_get 1.description")
+        code, out, err = self.t(f"_get {hex_id}.description")
         self.assertEqual(out.strip(), r"tab\ttab foo")
 
 
