@@ -926,7 +926,7 @@ dependencies = [
 [[package]]
 name = "taskchampion"
 version = "3.0.2-pre"
-source = "git+https://github.com/tta-lab/taskchampion.git?branch=main#ebff953dd8a001aecbcd5d8e12c78547ba21bdf8"
+source = "git+https://github.com/tta-lab/taskchampion.git?branch=main#7bedfa4fdb51cf81a981f4b938b6d3b3cd533ce7"
 dependencies = [
  "anyhow",
  "async-trait",
