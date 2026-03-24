@@ -388,6 +388,7 @@ class TestVirtualTags(TestCase):
         code, out, err = self.t("-SCHEDULED all")
         self.assertNotIn("is_scheduled", out)
 
+    @unittest.skip("Recurrence not supported in PowerSync backend")
     def test_virtual_tag_TEMPLATE(self):
         """Verify 'TEMPLATE' appears when expected"""
         code, out, err = self.t("+TEMPLATE status:recurring all")
@@ -396,6 +397,7 @@ class TestVirtualTags(TestCase):
         code, out, err = self.t.runError("-TEMPLATE status:recurring all")
         self.assertNotIn("is_recurring", out)
 
+    @unittest.skip("Recurrence not supported in PowerSync backend")
     def test_virtual_tag_INSTANCE(self):
         """Verify 'INSTANCE' appears when expected"""
         code, out, err = self.t("+INSTANCE status:pending all")
@@ -404,6 +406,7 @@ class TestVirtualTags(TestCase):
         code, out, err = self.t("-INSTANCE status:pending all")
         self.assertNotIn("is_recurring", out)
 
+    @unittest.skip("'until' column removed in this fork")
     def test_virtual_tag_UNTIL(self):
         """Verify 'UNTIL' appears when expected"""
         self.t("add has_until until:eonm")

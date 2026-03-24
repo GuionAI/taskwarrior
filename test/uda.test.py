@@ -103,8 +103,8 @@ class TestUdaDate(TestBaseUda):
         self.assertIn("Created task", out)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+[\d\/]+\s+with")
-        self.assertRegex(out, r"2\s+without")
+        self.assertRegex(out, r"[0-9a-f]+\s+[\d\/]+\s+with")
+        self.assertRegex(out, r"[0-9a-f]+\s+without")
 
     def test_uda_bad_date_task(self):
         """Add tasks with an invalid UDA date"""
@@ -134,7 +134,7 @@ class TestUdaDefault(TestBaseUda):
         self.assertIn("Created task", out)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+strong\s+one")
+        self.assertRegex(out, r"[0-9a-f]+\s+strong\s+one")
 
     def test_uda_default_task(self):
         """Add tasks with default UDA"""
@@ -143,7 +143,7 @@ class TestUdaDefault(TestBaseUda):
         self.assertIn("Created task", out)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+weak\s+two")
+        self.assertRegex(out, r"[0-9a-f]+\s+weak\s+two")
 
     def test_uda_without_default_task(self):
         """Add tasks without default UDA"""
@@ -152,7 +152,7 @@ class TestUdaDefault(TestBaseUda):
         self.assertIn("Created task", out)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+weak\s+10\s+three")
+        self.assertRegex(out, r"[0-9a-f]+\s+weak\s+10\s+three")
 
 
 class TestUdaDuration(TestBaseUda):
@@ -199,8 +199,8 @@ class TestUdaNumeric(TestBaseUda):
         self.assertIn("Created task", out)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+\d+\s+with")
-        self.assertRegex(out, r"2\s+without")
+        self.assertRegex(out, r"[0-9a-f]+\s+\d+\s+with")
+        self.assertRegex(out, r"[0-9a-f]+\s+without")
 
     def test_uda_bad_numeric_task(self):
         """Add tasks with an invalid UDA numeric"""
@@ -224,8 +224,8 @@ class TestUdaString(TestBaseUda):
         self.assertIn("Created task", out)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+one two\s+with")
-        self.assertRegex(out, r"2\s+without")
+        self.assertRegex(out, r"[0-9a-f]+\s+one two\s+with")
+        self.assertRegex(out, r"[0-9a-f]+\s+without")
 
 
 class TestUdaValue(TestBaseUda):
@@ -244,8 +244,8 @@ class TestUdaValue(TestBaseUda):
         self.assertIn("Created task", out)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+weak\s+one")
-        self.assertRegex(out, r"2\s+strong\s+two")
+        self.assertRegex(out, r"[0-9a-f]+\s+weak\s+one")
+        self.assertRegex(out, r"[0-9a-f]+\s+strong\s+two")
 
     def test_uda_invalid_value_task(self):
         """Add tasks with invalid UDA value"""
@@ -257,8 +257,8 @@ class TestUdaValue(TestBaseUda):
         self.assertIn("The 'extra' attribute does not allow a value of " "'toxic'", err)
 
         code, out, err = self.t("uda")
-        self.assertRegex(out, r"1\s+strong\s+one")
-        self.assertNotRegex(out, r"1\s+toxic\s+two")
+        self.assertRegex(out, r"[0-9a-f]+\s+strong\s+one")
+        self.assertNotRegex(out, r"[0-9a-f]+\s+toxic\s+two")
 
 
 class TestBug1063(TestCase):

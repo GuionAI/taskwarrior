@@ -779,7 +779,7 @@ std::string Task::composeJSON(bool decorate /*= false*/) {
 
   // ID inclusion is optional, but not a good idea, because it remains correct
   // only until the next gc.
-  if (decorate) out << "\"id\":" << id << ',';
+  if (decorate) out << "\"id\":\"" << id << "\",";
 
   // First the non-annotations.
   int attributes_written = 0;

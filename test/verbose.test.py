@@ -49,24 +49,27 @@ class TestVerbosity(TestCase):
     def test_verbosity_new_id(self):
         """Verbosity new-id"""
         code, out, err = self.t("rc.verbose:new-id add Sample1")
-        self.assertRegex(out, r"Created task \d")
+        # In this fork, task IDs are 8-char hex strings
+        self.assertRegex(out, r"Created task [0-9a-fA-F]{8}\.")
 
         code, out, err = self.t("rc.verbose:nothing add Sample2")
-        self.assertNotRegex(out, r"Created task \d")
+        self.assertNotRegex(out, r"Created task [0-9a-fA-F]{8}\.")
 
     def test_verbosity_new_uuid(self):
         """Verbosity new-uuid"""
         code, out, err = self.t(("rc.verbose:new-uuid", "add", "Sample1"))
+        # In this fork, new-uuid outputs the 8-char hex prefix form
         self.assertRegex(
             out,
-            r"Created task [0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+            r"Created task [0-9a-fA-F]{8}\.",
         )
 
     def test_verbosity_label(self):
         """Verbosity label"""
         code, out, err = self.t("rc.verbose:label ls")
+        # 'Until' and 'R' (Recur) columns removed in this fork
         self.assertRegex(
-            out, "ID.+A.+D.+Project.+Tags.+R.+Wait.+S.+Due.+Until.+Description"
+            out, "ID.+A.+D.+Project.+Tags.+Wait.+S.+Due.+Description"
         )
 
     def test_verbosity_affected(self):
@@ -109,13 +112,13 @@ class TestVerbosity(TestCase):
     def test_verbosity_header(self):
         """Verbosity header"""
 
+        # With 'override' token, rc overrides are printed to stderr
         code, out, err = self.t("rc.verbose:override ls")
-        self.assertNotIn("TASKRC override:", err)
-        self.assertNotIn("TASKDATA override:", err)
+        self.assertIn("Configuration override", err)
 
-        code, out, err = self.t("rc.verbose:header,override ls")
-        self.assertIn("TASKRC override:", err)
-        self.assertIn("TASKDATA override:", err)
+        # Without 'override' token, rc override messages are suppressed
+        code, out, err = self.t("rc.verbose:nothing ls")
+        self.assertNotIn("Configuration override", err)
 
     def test_verbosity_project(self):
         """Verbosity project"""

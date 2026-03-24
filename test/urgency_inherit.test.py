@@ -52,11 +52,15 @@ class TestUrgencyInherit(TestCase):
     def get_tasks(self):
         tasks = json.loads(self.t("rc.json.array=1 export")[1])
 
+        # Map by insertion order index (1-based) using _task_ids.
+        # task["id"] is always 0 in PowerSync backend (no working set).
         r = {}
+        id_to_idx = {hex_id: i + 1 for i, hex_id in enumerate(self.t._task_ids)}
         for task in tasks:
-            # Make available by ID. Discards non-pending tasks.
-            if task["id"] != 0:
-                r[task["id"]] = task
+            uuid_prefix = task["uuid"][:8]
+            idx = id_to_idx.get(uuid_prefix)
+            if idx:
+                r[idx] = task
 
         return r
 

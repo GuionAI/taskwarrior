@@ -96,7 +96,7 @@ class TestIDPosition(TestCase):
     def test_id_write_cmd(self):
         """Test id before write command"""
         code, out, err = self.t("2 done")
-        self.assertIn("Completed task 2", out)
+        self.assertRegex(out, r"Completed task [0-9a-f]+")
 
 
 if __name__ == "__main__":

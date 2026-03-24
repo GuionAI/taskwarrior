@@ -52,7 +52,7 @@ class TestReadOnly(TestCase):
 
     def resetTimestamp(self):
         # set the mtime of the taskdb to an hour ago, so we can see any changes
-        self.taskdb = self.t.datadir + "/taskchampion.sqlite3"
+        self.taskdb = self.t.db_path
         os.utime(self.taskdb, (time.time() - 3600,) * 2)
 
     def assertNotModified(self):
@@ -66,6 +66,7 @@ class TestReadOnly(TestCase):
         code, out, err = self.t("reports")
         self.assertNotModified()
 
+    @unittest.skip("gc removed: reports no longer trigger working set updates")
     def test_report(self):
         self.add_garbage()
         code, out, err = self.t("list")
@@ -75,6 +76,7 @@ class TestReadOnly(TestCase):
         code, out, err = self.t("add foo")
         self.assertModified()
 
+    @unittest.skip("gc removed: burndown no longer triggers working set updates")
     def test_burndown(self):
         self.add_garbage()
         code, out, err = self.t("burndown")

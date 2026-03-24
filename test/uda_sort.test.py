@@ -147,9 +147,10 @@ class TestBug1319(TestCase):
         self.t("add four when:morning")
 
         code, out, err = self.t("rc.verbose:nothing foo")
+        # IDs are now 8-char hex prefixes instead of sequential integers
         self.assertRegex(
             out,
-            r"4\s+morning\s+four\s+3\s+noon\s+three\s+2\s+evening\s+two\s+1\s+night\s+one",
+            r"(?s)[0-9a-f]+\s+morning\s+four.+[0-9a-f]+\s+noon\s+three.+[0-9a-f]+\s+evening\s+two.+[0-9a-f]+\s+night\s+one",
         )
 
 

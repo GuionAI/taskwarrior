@@ -15,4 +15,5 @@ echo '{"description":"Buy the milk","annotations":[{"description":"and Cheese"}]
 # Check that the task was added
 [[ `task count` == 1 ]]
 [[ `task milk count` == 1 ]]
-[[ `task _get 1.annotations.count` == 1 ]]
+ID=$(task_id 1)
+[[ `task _get ${ID}.annotations.count` == 1 ]]

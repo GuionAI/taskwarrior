@@ -101,7 +101,13 @@ class TestVersion(TestCase):
 
     def test_version_option(self):
         """Verify that  'task --version' returns something valid"""
-        code, out, err = self.t("--version")
+        # '--version' must be invoked without any rc overrides (including
+        # rc.default.command:) because passing those causes the binary to
+        # interpret the empty default command and exit with an error instead
+        # of printing the version string.
+        code, out, err = run_cmd_wait(
+            [self.t.taskw, "--version"], env=self.t.env
+        )
         self.assertRegex(out, r"^\d\.\d+\.\d+(\.\w+)?$")
 
 

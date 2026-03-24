@@ -3,9 +3,10 @@
 
 # Setup the tasks
 task add Something I did yesterday
-task 1 mod start:yesterday+18h
-task 1 done end:yesterday+20h
+ID=$(task_id 1)
+task $ID mod start:yesterday+18h
+task $ID done end:yesterday+20h
 
 # Check that 2 hour interval is reported by task info
-task info | grep -F "Start deleted"
-[[ ! -z `task info | grep -F "Start deleted (duration: 2:00:00)."` ]]
+task $ID info | grep -F "Start deleted"
+[[ ! -z `task $ID info | grep -F "Start deleted (duration: 2:00:00)."` ]]

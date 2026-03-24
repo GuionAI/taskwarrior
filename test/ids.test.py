@@ -37,6 +37,7 @@ from basetest import Task, TestCase
 from basetest.utils import UUID_REGEXP
 
 
+@unittest.skip("Working set removed: numeric IDs and range formats not supported")
 class TestIDs(TestCase):
     @classmethod
     def setUpClass(self):
@@ -119,6 +120,7 @@ class TestIDMisParse(TestCase):
         self.assertNotIn("three", out)
 
 
+@unittest.skip("Working set removed: ID range parsing not supported (no sequential numeric IDs)")
 class TestIDRangeParsing(TestCase):
     def setUp(self):
         """Executed before each test in the class"""

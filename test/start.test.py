@@ -137,7 +137,7 @@ class TestActiveTaskHandling(TestCase):
         """Verify error when starting a started task"""
         self.t("1 start")
         code, out, err = self.t.runError("1 start")
-        self.assertIn("Task 1 'one' already started.", out)
+        self.assertRegex(out, r"Task [0-9a-f]+ 'one' already started\.")
 
 
 class TestFeature608(TestCase):

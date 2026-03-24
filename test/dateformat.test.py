@@ -68,7 +68,7 @@ class TestBug886(TestCase):
         Bug 886: tw doesn't warn the user if, e.g., a weekday cannot be resolved properly
         """
         code, out, err = self.t("add one due:sun")
-        self.assertIn("Created task 1.", out)
+        self.assertRegex(out, r"Created task [0-9a-f]+")
 
         code, out, err = self.t.runError("add two due:donkey")
         self.assertIn("'donkey' is not a valid date", err)

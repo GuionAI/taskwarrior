@@ -52,6 +52,7 @@ class TestImport(TestCase):
 [description:"bar" end:"1734397065" entry:"1734397056" modified:"1734397065" status:"completed" uuid:"51921813-7abb-412d-8ada-7c1417d01209"]\
 """
 
+    @unittest.skip("import-v2 reads legacy .data files not supported in PowerSync storage")
     def test_import_v2(self):
         with open(os.path.join(self.t.datadir, "pending.data"), "w") as f:
             f.write(self.pending)

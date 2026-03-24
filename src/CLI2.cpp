@@ -1265,6 +1265,16 @@ static bool looksLikeHexPrefix(const std::string& s) {
   return true;
 }
 
+// Returns true if s is a comma-separated list of hex prefixes (e.g. "a1b2c3d4,e5f6a7b8").
+static bool looksLikeHexPrefixList(const std::string& s) {
+  if (s.empty()) return false;
+  auto elements = split(s, ',');
+  if (elements.size() < 2) return false;
+  for (const auto& e : elements)
+    if (!looksLikeHexPrefix(e)) return false;
+  return true;
+}
+
 void CLI2::findIDs() {
   bool changes = false;
 
@@ -1278,11 +1288,21 @@ void CLI2::findIDs() {
 
         std::string raw = a.attribute("raw");
 
-        // A hex-only word token is treated as a UUID prefix.
-        if (a._lextype == Lexer::Type::word && !previousFilterArgWasAnOperator &&
+        // A hex-only word/identifier token is treated as a UUID prefix.
+        bool isWordOrIdent = (a._lextype == Lexer::Type::word ||
+                              a._lextype == Lexer::Type::identifier);
+        if (isWordOrIdent && !previousFilterArgWasAnOperator &&
             looksLikeHexPrefix(raw)) {
           changes = true;
           _uuid_list.push_back(raw);
+        } else if (isWordOrIdent && !previousFilterArgWasAnOperator &&
+                   looksLikeHexPrefixList(raw)) {
+          // Comma-separated list of hex prefixes passed as a single word/identifier token.
+          auto elements = split(raw, ',');
+          for (auto& element : elements) {
+            changes = true;
+            _uuid_list.push_back(element);
+          }
         } else if (a._lextype == Lexer::Type::set) {
           // Comma-separated list — each element may be a hex prefix.
           auto elements = split(raw, ',');
@@ -1307,7 +1327,8 @@ void CLI2::findIDs() {
           if (a.hasTag("MODIFICATION")) {
             std::string raw = a.attribute("raw");
 
-            if (a._lextype == Lexer::Type::word && looksLikeHexPrefix(raw)) {
+            if ((a._lextype == Lexer::Type::word || a._lextype == Lexer::Type::identifier) &&
+                looksLikeHexPrefix(raw)) {
               changes = true;
               a.unTag("MODIFICATION");
               a.tag("FILTER");
@@ -1399,7 +1420,8 @@ void CLI2::insertIDExpr() {
   std::vector<A2> reconstructed;
   for (const auto& a : _args) {
     if ((a._lextype == Lexer::Type::set || a._lextype == Lexer::Type::number ||
-         a._lextype == Lexer::Type::uuid || a._lextype == Lexer::Type::word) &&
+         a._lextype == Lexer::Type::uuid || a._lextype == Lexer::Type::word ||
+         a._lextype == Lexer::Type::identifier) &&
         a.hasTag("FILTER")) {
       if (!foundID) {
         foundID = true;

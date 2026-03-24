@@ -109,13 +109,13 @@ class TestBug956(TestCase):
     def test_ids_header(self):
         """956: Verify 'ids' does not print a header"""
         code, out, err = self.t("rc.verbose:nothing ids")
-        self.assertIn("1\n", out)
+        self.assertRegex(out, r"^[0-9a-f]{8}$")
         self.assertNotIn("TASKRC", out)
 
     def test_ids_helper_header(self):
         """956: Verify '_ids' does not print a header"""
         code, out, err = self.t("rc.verbose:nothing _ids")
-        self.assertIn("1\n", out)
+        self.assertRegex(out, r"^[0-9a-f]{8}$")
         self.assertNotIn("TASKRC", out)
 
     def test_uuids_header(self):

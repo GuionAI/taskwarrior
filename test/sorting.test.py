@@ -259,7 +259,9 @@ class TestSortNone(TestCase):
             "%s %s %s list rc.report.list.sort:none rc.report.list.columns:id,description rc.report.list.labels:id,desc"
             % (uuid2, uuid3, uuid1)
         )
-        self.assertRegex(out, " 2 two\n 3 three\n 1 one")
+        # With sort:none, tasks appear in filter order (uuid2, uuid3, uuid1).
+        # IDs are now 8-char hex prefixes, so just check task names in order.
+        self.assertRegex(out, r"(?s)two.+three.+one")
 
 
 if __name__ == "__main__":

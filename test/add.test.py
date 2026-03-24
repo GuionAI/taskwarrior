@@ -192,7 +192,7 @@ class Test1549(TestCase):
 
         # This command will hang and therefore timeout in 2.4.1.
         code, out, err = self.t("rc.verbose:new-id add 1e x")
-        self.assertIn("Created task 1.", out)
+        self.assertRegex(out, r"Created task [0-9a-f]+")
 
 
 class TestBug1612(TestCase):
