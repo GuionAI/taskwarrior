@@ -64,6 +64,22 @@ int CmdAdd::execute(std::string& output) {
   if (task.has("parent_id") && task.get("parent_id") != "") {
     static constexpr const char* TC_NIL_UUID = "00000000-0000-0000-0000-000000000000";
     auto parent_uuid = task.get("parent_id");
+
+    // Resolve prefix to full UUID before any FFI calls.
+    // TDB2::get() supports prefix matching (closeEnough()), serving as both
+    // existence check and prefix resolver. validate() will also resolve it,
+    // but CmdAdd calls this block BEFORE tdb2.add() -> validate().
+    {
+      Task parent_task;
+      if (!Context::getContext().tdb2.get(parent_uuid, parent_task))
+        throw std::string("Parent task '" + parent_uuid + "' does not exist.");
+      auto full_parent_uuid = parent_task.get("uuid");
+      if (parent_uuid != full_parent_uuid) {
+        parent_uuid = full_parent_uuid;
+        task.set("parent_id", full_parent_uuid);
+      }
+    }
+
     auto tm = Context::getContext().tdb2.tree_map();
     if (tm->had_invalid_data())
       Context::getContext().footnote(
