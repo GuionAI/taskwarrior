@@ -147,6 +147,106 @@ class TestBug425(TestCase):
         self.assertRegex(out, r"[0-9a-f]{8}\s+Bar in Bar")
 
 
+def get_uuid(t, description):
+    """Get UUID of a task by description via export."""
+    tasks = t.export()
+    for task in tasks:
+        if task.get("description") == description:
+            return task["uuid"]
+    raise AssertionError(f"Task '{description}' not found")
+
+
+class TestInfoChildren(TestCase):
+    def setUp(self):
+        self.t = Task()
+
+    def test_info_children(self):
+        """Verify info command shows children with description, status, and annotations"""
+        # Create parent task
+        self.t("add Parent task")
+        parent_uuid = get_uuid(self.t, "Parent task")
+        parent_short = parent_uuid[:8]
+
+        # Create child tasks under the parent
+        self.t("add Child one parent_id:{0}".format(parent_short))
+        child1_uuid = get_uuid(self.t, "Child one")
+        child1_short = child1_uuid[:8]
+
+        self.t("add Child two parent_id:{0}".format(parent_short))
+        child2_uuid = get_uuid(self.t, "Child two")
+        child2_short = child2_uuid[:8]
+
+        # Add annotation to child1
+        self.t("{0} annotate 'child1 note'".format(child1_short), input="n\n")
+
+        # Complete child2
+        self.t("{0} done".format(child2_short), input="n\n")
+
+        # Run info on parent
+        code, out, err = self.t("{0} info".format(parent_short))
+
+        # Verify Children section exists
+        self.assertIn("Children", out)
+
+        # Slice to Children section to avoid matching parent's own fields
+        children_section = out[out.index("Children"):]
+
+        # Verify child descriptions + short UUIDs appear in Children section
+        self.assertIn("Child one", children_section)
+        self.assertIn("Child two", children_section)
+        self.assertIn(child1_short, children_section)
+        self.assertIn(child2_short, children_section)
+
+        # Verify status indicators in Children section
+        self.assertIn("Pending", children_section)
+        self.assertIn("Completed", children_section)
+
+        # Verify child1's annotation appears
+        self.assertIn("child1 note", children_section)
+
+    def test_info_no_children(self):
+        """Verify info command does not show Children row for leaf tasks"""
+        self.t("add Leaf task")
+        leaf_short = get_uuid(self.t, "Leaf task")[:8]
+        code, out, err = self.t("{0} info".format(leaf_short))
+        self.assertNotIn("Children", out)
+
+    def test_info_children_direct_only(self):
+        """Verify info on grandparent shows only direct children, not grandchildren"""
+        self.t("add Grandparent")
+        gp_uuid = get_uuid(self.t, "Grandparent")
+        gp_short = gp_uuid[:8]
+
+        self.t("add Parent child parent_id:{0}".format(gp_short))
+        parent_uuid = get_uuid(self.t, "Parent child")
+        parent_short = parent_uuid[:8]
+
+        self.t("add Grandchild parent_id:{0}".format(parent_short))
+
+        code, out, err = self.t("{0} info".format(gp_short))
+        self.assertIn("Children", out)
+
+        children_section = out[out.index("Children"):]
+        self.assertIn("Parent child", children_section)
+        self.assertNotIn("Grandchild", children_section)
+
+    def test_info_children_deleted(self):
+        """Verify info shows deleted children with correct status"""
+        self.t("add Parent for delete test")
+        parent_short = get_uuid(self.t, "Parent for delete test")[:8]
+
+        self.t("add Deleted child parent_id:{0}".format(parent_short))
+        child_short = get_uuid(self.t, "Deleted child")[:8]
+
+        self.t("{0} delete".format(child_short), input="y\n")
+
+        code, out, err = self.t("{0} info".format(parent_short))
+        self.assertIn("Children", out)
+        children_section = out[out.index("Children"):]
+        self.assertIn("Deleted child", children_section)
+        self.assertIn("Deleted", children_section)
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 
