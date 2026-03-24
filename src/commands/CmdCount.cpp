@@ -43,6 +43,7 @@ CmdCount::CmdCount() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::metadata;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

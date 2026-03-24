@@ -49,6 +49,7 @@ CmdTags::CmdTags() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::metadata;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,6 +139,7 @@ CmdCompletionTags::CmdCompletionTags() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::internal;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

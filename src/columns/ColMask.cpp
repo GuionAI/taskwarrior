@@ -24,25 +24,32 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#include <cmake.h>
+// cmake.h include header must come first
 
-#include <Command.h>
+#include <ColMask.h>
+#include <format.h>
 
-#include <string>
+////////////////////////////////////////////////////////////////////////////////
+ColumnMask::ColumnMask() {
+  _name = "mask";
+  _style = "default";
+  _label = "Mask";
+  _modifiable = false;
+  _styles = {"default"};
+  _examples = {"++++---"};
+}
 
-class CmdModify : public Command {
- public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
-};
+////////////////////////////////////////////////////////////////////////////////
+// Set the minimum and maximum widths for the value.
+void ColumnMask::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
+  minimum = maximum = 0;
+  if (task.has(_name)) minimum = maximum = task.get(_name).length();
+}
 
-#endif
+////////////////////////////////////////////////////////////////////////////////
+void ColumnMask::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
+  if (task.has(_name)) renderStringLeft(lines, width, color, task.get(_name));
+}
+
 ////////////////////////////////////////////////////////////////////////////////

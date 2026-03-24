@@ -130,6 +130,22 @@ void Filter::subset(std::vector<Task>& output) {
       }
     }
 
+    // Fallback: if a UUID filter matched nothing in pending+completed, also
+    // search recurring templates.  PowerSync's pending_task_data() excludes
+    // status=recurring tasks from the working-set index, so they are invisible
+    // to the normal path.  Only triggered when output is empty AND there are
+    // explicit UUID references in the filter, so this never inflates general
+    // task-count queries.
+    if (output.empty() && !Context::getContext().cli2._uuid_list.empty()) {
+      for (auto& task : Context::getContext().tdb2.all_tasks()) {
+        if (task.getStatus() != Task::recurring) continue;
+        auto currentTask = Context::getContext().withCurrentTask(&task);
+        Variant var;
+        eval.evaluateCompiledExpression(var);
+        if (var.get_bool()) output.push_back(task);
+      }
+    }
+
     eval.debug(false);
   } else {
     safety();
@@ -170,6 +186,7 @@ bool Filter::pendingOnly() const {
   int countStatus = 0;
   int countPending = 0;
   int countWaiting = 0;
+  int countRecurring = 0;
   int countUUID = (int)Context::getContext().cli2._uuid_list.size();
   int countOr = 0;
   int countXor = 0;
@@ -188,6 +205,7 @@ bool Filter::pendingOnly() const {
       if (a._lextype == Lexer::Type::dom && canonical == "status") ++countStatus;
       if (raw == "pending") ++countPending;
       if (raw == "waiting") ++countWaiting;
+      if (raw == "recurring") ++countRecurring;
     }
   }
 
@@ -203,7 +221,7 @@ bool Filter::pendingOnly() const {
   if (pendingTag || activeTag) return true;
 
   if (countStatus) {
-    if (!countPending && !countWaiting) return false;
+    if (!countPending && !countWaiting && !countRecurring) return false;
 
     return true;
   }

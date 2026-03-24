@@ -50,6 +50,7 @@ CmdProjects::CmdProjects() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::metadata;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,6 +143,7 @@ CmdCompletionProjects::CmdCompletionProjects() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::internal;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

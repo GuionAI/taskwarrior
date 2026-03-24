@@ -68,6 +68,7 @@ CmdEdit::CmdEdit() {
   _accepts_modifications = false;
   _accepts_miscellaneous = false;
   _category = Command::Category::operation;
+  _needs_recur_update = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -199,6 +200,8 @@ std::string CmdEdit::formatTask(Task task, const std::string& dateformat) {
          << "# ID:                " << task.id << '\n'
          << "# UUID:              " << task.get("uuid") << '\n'
          << "# Status:            " << Lexer::ucFirst(Task::statusToText(task.getStatus())) << '\n'
+         << "# Mask:              " << task.get("mask") << '\n'
+         << "# iMask:             " << task.get("imask") << '\n'
          << "  Project:           " << task.get("project") << '\n';
 
   if (verbose) before << "# Separate the tags with spaces, like this: tag1 tag2\n";
@@ -211,9 +214,11 @@ std::string CmdEdit::formatTask(Task task, const std::string& dateformat) {
          << "  Scheduled:         " << formatDate(task, "scheduled", dateformat) << '\n'
          << "  Due:               " << formatDate(task, "due", dateformat) << '\n'
          << "  Until:             " << formatDate(task, "until", dateformat) << '\n'
+         << "  Recur:             " << task.get("recur") << '\n'
          << "  Wait until:        " << formatDate(task, "wait", dateformat) << '\n'
          << "# Modified:          " << formatDate(task, "modified", dateformat) << '\n'
-         << "  Parent:            " << task.get("parent_id") << '\n';
+         << "  Parent:            " << task.get("parent") << '\n'
+         << "  Parent (tree):     " << task.get("parent_id") << '\n';
 
   if (verbose)
     before
@@ -405,8 +410,8 @@ void CmdEdit::parseTask(Task& task, const std::string& after, const std::string&
     }
   } else {
     if (task.get("due") != "") {
-      if (false) {
-        // placeholder — recurring check removed
+      if (task.getStatus() == Task::recurring || task.get("parent") != "") {
+        Context::getContext().footnote("Cannot remove a due date from a recurring task.");
       } else {
         Context::getContext().footnote("Due date removed.");
         task.remove("due");
@@ -433,6 +438,31 @@ void CmdEdit::parseTask(Task& task, const std::string& after, const std::string&
     }
   }
 
+  // recur
+  value = findValue(after, "\n  Recur:");
+  if (value != task.get("recur")) {
+    if (value != "") {
+      Duration p;
+      std::string::size_type idx = 0;
+      if (p.parse(value, idx)) {
+        Context::getContext().footnote("Recurrence modified.");
+        if (task.get("due") != "") {
+          task.set("recur", value);
+          task.setStatus(Task::recurring);
+        } else
+          throw std::string("A recurring task must have a due date.");
+      } else
+        throw std::string("Not a valid recurrence duration.");
+    } else {
+      Context::getContext().footnote("Recurrence removed.");
+      task.setStatus(Task::pending);
+      task.remove("recur");
+      task.remove("until");
+      task.remove("mask");
+      task.remove("imask");
+    }
+  }
+
   // wait
   value = findValue(after, "\n  Wait until:");
   if (value != "") {
@@ -455,8 +485,20 @@ void CmdEdit::parseTask(Task& task, const std::string& after, const std::string&
     }
   }
 
-  // parent
+  // parent (recurrence template link)
   value = findValue(after, "\n  Parent:");
+  if (value != task.get("parent")) {
+    if (value != "") {
+      Context::getContext().footnote("Recurrence parent UUID modified.");
+      task.set("parent", value);
+    } else {
+      Context::getContext().footnote("Recurrence parent UUID removed.");
+      task.remove("parent");
+    }
+  }
+
+  // parent (tree hierarchy)
+  value = findValue(after, "\n  Parent (tree):");
   if (value != task.get("parent_id")) {
     if (value != "") {
       Context::getContext().footnote("Parent UUID modified.");

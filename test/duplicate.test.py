@@ -76,7 +76,6 @@ class TestDuplication2(TestCase):
         """Executed before each test in the class"""
         self.t = Task()
 
-    @unittest.skip("Recurrence not supported in PowerSync backend")
     def test_duplication_recurrence(self):
         """Verify that recurring tasks are properly duplicated"""
         self.t("add R due:tomorrow recur:weekly")

@@ -24,24 +24,18 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#ifndef INCLUDED_COLTEMPLATE
+#define INCLUDED_COLTEMPLATE
 
-#include <Command.h>
+#include <ColTypeString.h>
 
-#include <string>
-
-class CmdModify : public Command {
+class ColumnTemplate : public ColumnTypeString {
  public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
+  ColumnTemplate();
+  void measure(Task&, unsigned int&, unsigned int&);
+  void render(std::vector<std::string>&, Task&, int, Color&);
+
+ private:
 };
 
 #endif

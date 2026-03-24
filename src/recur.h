@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright 2006 - 2021, Tomas Babej, Paul Beckingham, Federico Hernandez.
+// Copyright 2006 - 2025, Tomas Babej, Paul Beckingham, Federico Hernandez,
+// 						  Tobias Predel.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,25 +25,33 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#ifndef INCLUDED_RECUR
+#define INCLUDED_RECUR
 
-#include <Command.h>
+#include <cmake.h>
+// cmake.h include header must come first
 
-#include <string>
+#include <Context.h>
+#include <Datetime.h>
+#include <Duration.h>
+#include <Lexer.h>
+#include <format.h>
+#include <pwd.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unicode.h>
+#include <unistd.h>
+#include <util.h>
 
-class CmdModify : public Command {
- public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
-};
+#include <optional>
+
+std::optional<Datetime> checked_add_datetime(Datetime& base, time_t delta);
+void handleRecurrence();
+bool generateDueDates(Task& parent, std::vector<Datetime>& allDue);
+std::optional<Datetime> getNextRecurrence(Datetime& current, std::string& period);
+void updateRecurrenceMask(Task& task);
+void handleUntil();
 
 #endif
+
 ////////////////////////////////////////////////////////////////////////////////

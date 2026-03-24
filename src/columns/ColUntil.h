@@ -24,24 +24,14 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#ifndef INCLUDED_COLUNTIL
+#define INCLUDED_COLUNTIL
 
-#include <Command.h>
+#include <ColTypeDate.h>
 
-#include <string>
-
-class CmdModify : public Command {
+class ColumnUntil : public ColumnTypeDate {
  public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
+  ColumnUntil();
 };
 
 #endif

@@ -24,25 +24,45 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_CMDMODIFY
-#define INCLUDED_CMDMODIFY
+#include <cmake.h>
+// cmake.h include header must come first
 
-#include <Command.h>
+#include <ColTemplate.h>
+#include <format.h>
 
-#include <string>
+////////////////////////////////////////////////////////////////////////////////
+ColumnTemplate::ColumnTemplate() {
+  _name = "template";
+  _style = "long";
+  _label = "Template task";
+  _modifiable = false;
+  _styles = {"long", "short"};
+  _examples = {"f30cb9c3-3fc0-483f-bfb2-3bf134f00694", "f30cb9c3"};
+}
 
-class CmdModify : public Command {
- public:
-  CmdModify();
-  int execute(std::string&);
-  void checkConsistency(Task& before, Task& after);
-  int modifyAndUpdate(Task& before, Task& after,
-                      std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceSiblings(Task& task,
-                               std::map<std::string, std::string>* projectChanges = nullptr);
-  int modifyRecurrenceParent(Task& task,
-                             std::map<std::string, std::string>* projectChanges = nullptr);
-};
+////////////////////////////////////////////////////////////////////////////////
+// Set the minimum and maximum widths for the value.
+void ColumnTemplate::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
+  minimum = maximum = 0;
+  if (task.has(_name)) {
+    if (_style == "default" || _style == "long")
+      minimum = maximum = 36;
+    else if (_style == "short")
+      minimum = maximum = 8;
+  }
+}
 
-#endif
+////////////////////////////////////////////////////////////////////////////////
+void ColumnTemplate::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
+  if (task.has(_name)) {
+    // f30cb9c3-3fc0-483f-bfb2-3bf134f00694  default
+    // f30cb9c3                              short
+    if (_style == "default" || _style == "long")
+      renderStringLeft(lines, width, color, task.get(_name));
+
+    else if (_style == "short")
+      renderStringLeft(lines, width, color, task.get(_name).substr(0, 8));
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////

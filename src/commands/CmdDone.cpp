@@ -29,6 +29,7 @@
 
 #include <CmdDone.h>
 #include <Context.h>
+#include <recur.h>
 #include <Filter.h>
 #include <dependency.h>
 #include <feedback.h>
@@ -101,6 +102,8 @@ int CmdDone::execute(std::string&) {
         dependencyChainOnComplete(task);
         if (Context::getContext().verbose("project"))
           projectChanges[task.get("project")] = onProjectChange(task);
+
+        updateRecurrenceMask(task);
 
         // Auto-complete all pending/waiting descendants (no prompt).
         auto desc = Context::getContext().tdb2.descendants(task.get("uuid"));

@@ -393,4 +393,36 @@ static void dependency_scan(std::vector<Task>& tasks) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Returns sibling recurrence instances (same recurrence parent, excluding self).
+const std::vector<Task> TDB2::siblings(Task& task) {
+  std::vector<Task> results;
+  if (task.has("parent")) {
+    std::string parent = task.get("parent");
+    std::string uuid = task.get("uuid");
+    for (auto& i : this->pending_tasks()) {
+      if (i.get("uuid") != uuid) {
+        if (i.getStatus() != Task::completed && i.getStatus() != Task::deleted) {
+          if (i.has("parent") && i.get("parent") == parent) {
+            results.push_back(i);
+          }
+        }
+      }
+    }
+  }
+  return results;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Returns children of a recurrence template (tasks whose "parent" field matches).
+const std::vector<Task> TDB2::recurrence_children(const std::string& parent_uuid) {
+  std::vector<Task> results;
+  for (auto& task : pending_tasks()) {
+    if (task.has("parent") && task.get("parent") == parent_uuid) {
+      results.push_back(task);
+    }
+  }
+  return results;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // vim: ts=2 et sw=2

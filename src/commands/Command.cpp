@@ -295,6 +295,7 @@ Command::Command()
       _read_only(true),
       _displays_id(true),
       _needs_confirm(false),
+      _needs_recur_update(false),
       _uses_context(false),
       _accepts_filter(false),
       _accepts_modifications(false),
@@ -318,6 +319,9 @@ bool Command::read_only() const { return _read_only; }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool Command::displays_id() const { return _displays_id; }
+
+////////////////////////////////////////////////////////////////////////////////
+bool Command::needs_recur_update() const { return _needs_recur_update; }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool Command::uses_context() const { return _uses_context; }
