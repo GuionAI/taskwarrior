@@ -169,6 +169,32 @@ int CmdInfo::execute(std::string& output) {
       view.set(row, 1, task.get("parent_id"));
     }
 
+    // children (tree hierarchy)
+    {
+      auto children = Context::getContext().tdb2.children(task.get("uuid"));
+      if (children.size()) {
+        std::stringstream childrenStr;
+        for (auto& child : children) {
+          std::string childUuid = child.get("uuid").substr(0, 8);
+          std::string childDesc = child.get("description");
+          std::string childStatus = Lexer::ucFirst(Task::statusToText(child.getStatus()));
+          childrenStr << "[" << childUuid << "] " << childDesc << " (" << childStatus << ")";
+
+          // Show annotations indented below each child, with timestamp (matching parent pattern).
+          for (auto& anno : child.getAnnotations())
+            childrenStr << '\n' << std::string(indent, ' ')
+                        << Datetime(anno.first.substr(11)).toString(dateformatanno) << ' '
+                        << anno.second;
+
+          childrenStr << '\n';
+        }
+
+        row = view.addRow();
+        view.set(row, 0, "Children");
+        view.set(row, 1, childrenStr.str());
+      }
+    }
+
     // recur
     if (task.has("recur")) {
       row = view.addRow();
