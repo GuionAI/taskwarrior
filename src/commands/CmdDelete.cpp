@@ -119,13 +119,13 @@ int CmdDelete::execute(std::string&) {
               ++count;
             }
 
-            // Delete the parent
+            // Delete the parent (guard against missing parent).
             Task parent;
-            Context::getContext().tdb2.get(task.get("parent"), parent);
-            parent.setStatus(Task::deleted);
-            if (!parent.has("end")) parent.setAsNow("end");
-
-            Context::getContext().tdb2.modify(parent);
+            if (Context::getContext().tdb2.get(task.get("parent"), parent)) {
+              parent.setStatus(Task::deleted);
+              if (!parent.has("end")) parent.setAsNow("end");
+              Context::getContext().tdb2.modify(parent);
+            }
           }
         } else if (originalStatus == Task::recurring) {
           // Recurring parent deleted — also delete all pending children.

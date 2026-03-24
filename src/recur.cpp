@@ -152,6 +152,7 @@ bool generateDueDates(Task& parent, std::vector<Datetime>& allDue) {
   if (due._date == 0) return false;
 
   std::string recur = parent.get("recur");
+  if (recur.empty()) return false;
 
   bool specificEnd = false;
   Datetime until;
@@ -233,9 +234,11 @@ std::optional<Datetime> getNextRecurrence(Datetime& current, std::string& period
   else if (unicodeLatinDigit(period[0]) && period[period.length() - 1] == 'm') {
     int increment = strtol(period.substr(0, period.length() - 1).c_str(), nullptr, 10);
 
-    if (increment <= 0)
-      throw format("Recurrence period '{1}' is equivalent to {2} and hence invalid.", period,
-                   increment);
+    if (increment <= 0) {
+      Context::getContext().footnote(format(
+          "Recurrence period '{1}' is equivalent to {2} and hence invalid.", period, increment));
+      return std::nullopt;
+    }
 
     m += increment;
     while (m > 12) {
@@ -252,9 +255,11 @@ std::optional<Datetime> getNextRecurrence(Datetime& current, std::string& period
            period[period.length() - 1] == 'M') {
     int increment = strtol(period.substr(1, period.length() - 2).c_str(), nullptr, 10);
 
-    if (increment <= 0)
-      throw format("Recurrence period '{1}' is equivalent to {2} and hence invalid.", period,
-                   increment);
+    if (increment <= 0) {
+      Context::getContext().footnote(format(
+          "Recurrence period '{1}' is equivalent to {2} and hence invalid.", period, increment));
+      return std::nullopt;
+    }
 
     m += increment;
     while (m > 12) {
@@ -368,7 +373,7 @@ void updateRecurrenceMask(Task& task) {
                     : (task.getStatus() == Task::waiting)   ? 'W'
                                                             : '?';
     } else {
-      std::string mask;
+      mask = "";
       for (unsigned int i = 0; i < index; ++i) mask += "?";
 
       mask += (task.getStatus() == Task::pending)     ? '-'
@@ -380,6 +385,9 @@ void updateRecurrenceMask(Task& task) {
 
     parent.set("mask", mask);
     Context::getContext().tdb2.modify(parent);
+  } else if (uuid != "") {
+    Context::getContext().debug(
+        format("updateRecurrenceMask: parent {1} not found, mask not updated", uuid));
   }
 }
 

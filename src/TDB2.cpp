@@ -389,8 +389,9 @@ const std::vector<Task> TDB2::siblings(Task& task) {
   std::vector<Task> results;
   if (task.has("parent")) {
     std::string parent = task.get("parent");
+    std::string uuid = task.get("uuid");
     for (auto& i : this->pending_tasks()) {
-      if (i.id != task.id) {
+      if (i.get("uuid") != uuid) {
         if (i.getStatus() != Task::completed && i.getStatus() != Task::deleted) {
           if (i.has("parent") && i.get("parent") == parent) {
             results.push_back(i);
