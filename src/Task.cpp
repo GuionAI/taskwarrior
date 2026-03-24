@@ -1497,39 +1497,31 @@ void Task::validate(bool applyDefault /* = true */) {
     Context::getContext().footnote(format("Warning: task has no description."));
 
 #ifdef PRODUCT_TASKWARRIOR
-  // Validate parent field for tree hierarchy.
+  // Validate parent_id field for tree hierarchy.
   if (has("parent_id") && get("parent_id") != "") {
-    auto parent_uuid = get("parent_id");
+    // Resolve prefix to full UUID; throws if task not found.
+    auto full_parent_uuid = Context::getContext().tdb2.resolve_uuid(get("parent_id"));
+
+    // Store the resolved full UUID back so all downstream FFI calls
+    // (uuid_from_string) always receive a full 36-char UUID.
+    if (get("parent_id") != full_parent_uuid)
+      set("parent_id", full_parent_uuid);
+
     auto my_uuid = get("uuid");
 
-    // Validate parent UUID format before calling uuid_from_string (which panics on bad input).
-    {
-      Lexer lex(parent_uuid);
-      std::string token;
-      Lexer::Type type;
-      if (!lex.isUUID(token, type, true))
-        throw format("'parent_id' value '{1}' is not a valid UUID.", parent_uuid);
-    }
-
     // Prevent self-parenting.
-    if (parent_uuid == my_uuid) throw std::string("A task cannot be its own parent.");
-
-    // Parent must exist.
-    Task parent_task;
-    if (!Context::getContext().tdb2.get(parent_uuid, parent_task))
-      throw std::string("Parent task '" + parent_uuid + "' does not exist.");
+    if (full_parent_uuid == my_uuid)
+      throw std::string("A task cannot be its own parent.");
 
     // Prevent circular references via bridge TreeMap.
-    // UUID is always set at this point in validate() — the isUUID check above plus
-    // the uuid() call earlier in this function guarantee my_uuid is non-empty.
     auto tm = Context::getContext().tdb2.tree_map();
     if (tm->had_invalid_data())
       Context::getContext().footnote(
           "Warning: tree data may be corrupt; cycle check may be inaccurate.");
     auto my_tc_uuid = tc::uuid_from_string(my_uuid);
-    auto parent_tc_uuid = tc::uuid_from_string(parent_uuid);
+    auto parent_tc_uuid = tc::uuid_from_string(full_parent_uuid);
     if (tm->is_ancestor(parent_tc_uuid, my_tc_uuid))
-      throw std::string("Circular reference detected: '" + parent_uuid +
+      throw std::string("Circular reference detected: '" + full_parent_uuid +
                         "' is already a descendant of this task.");
   }
 #endif
@@ -2035,11 +2027,14 @@ void Task::modify(modType type, bool text_required /* = false */) {
     std::string parent_uuid = get("parent_id");
     bool at_root = parent_uuid.empty();
 
-    // Verify parent exists if this task has one (guards against dangling parent).
+    // Verify parent exists if this task has one and resolve any prefix to
+    // a full UUID before downstream FFI calls.
     if (!at_root) {
-      Task parent_task;
-      if (!Context::getContext().tdb2.get(parent_uuid, parent_task))
-        throw std::string("Cannot reorder: parent task '" + parent_uuid + "' does not exist.");
+      auto full_uuid = Context::getContext().tdb2.resolve_uuid(parent_uuid);
+      if (parent_uuid != full_uuid) {
+        parent_uuid = full_uuid;
+        set("parent_id", full_uuid);
+      }
     }
 
     auto tm = Context::getContext().tdb2.tree_map();
@@ -2049,7 +2044,10 @@ void Task::modify(modType type, bool text_required /* = false */) {
     tc::Uuid self_tc = tc::uuid_from_string(get("uuid"));
     auto siblings = tm->sibling_positions(parent_tc, at_root, self_tc, true);
 
-    std::string target_uuid = has_after ? get("after") : get("before");
+    // Resolve before:/after: target prefix to a full UUID so the string
+    // comparison against siblings[i].uuid.to_string() (always full UUID) works.
+    std::string target_uuid =
+        Context::getContext().tdb2.resolve_uuid(has_after ? get("after") : get("before"));
     remove(has_after ? "after" : "before");
 
     std::string target_pos, neighbor_pos;

@@ -87,6 +87,32 @@ class TestTreeAdd(TestCase):
         import re
         self.assertRegex(out, r"Created task [0-9a-f]{8}\.")
 
+    def test_add_parent_id_prefix(self):
+        """Adding a child with 8-char parent_id prefix resolves to full UUID."""
+        self.t("add Project")
+        parent_uuid = get_uuid(self.t, "Project")
+        prefix = parent_uuid[:8]
+
+        self.t(f"add Child parent_id:{prefix}")
+
+        tasks = self.t.export()
+        child = next(t for t in tasks if t.get("description") == "Child")
+        # Stored parent_id should be the full UUID, not the prefix
+        self.assertEqual(child.get("parent_id"), parent_uuid)
+
+    def test_modify_parent_id_prefix(self):
+        """Modifying parent_id with 8-char prefix resolves to full UUID."""
+        self.t("add Project")
+        self.t("add Orphan")
+        parent_uuid = get_uuid(self.t, "Project")
+        orphan_uuid = get_uuid(self.t, "Orphan")
+
+        self.t(f"{orphan_uuid[:8]} modify parent_id:{parent_uuid[:8]}")
+
+        tasks = self.t.export()
+        orphan = next(t for t in tasks if t.get("description") == "Orphan")
+        self.assertEqual(orphan.get("parent_id"), parent_uuid)
+
 
 class TestTreeDisplay(TestCase):
     """Tests for task tree display."""
@@ -177,6 +203,22 @@ class TestTreeValidation(TestCase):
             f"{uuid[:8]} modify parent_id:{fake_uuid}"
         )
         self.assertIn("does not exist", err + out)
+
+    def test_nonexistent_prefix_rejected(self):
+        """parent_id with prefix matching no task is rejected."""
+        self.t("add Task A")
+        uuid = get_uuid(self.t, "Task A")
+
+        code, out, err = self.t.runError(f"add Child parent_id:00000000")
+        self.assertIn("does not exist", err + out)
+
+    def test_self_parent_via_prefix_rejected(self):
+        """A task cannot be its own parent even when prefix is used."""
+        self.t("add Task A")
+        uuid = get_uuid(self.t, "Task A")
+
+        code, out, err = self.t.runError(f"{uuid[:8]} modify parent_id:{uuid[:8]}")
+        self.assertIn("cannot be its own parent", err + out)
 
 
 class TestTreeDone(TestCase):
