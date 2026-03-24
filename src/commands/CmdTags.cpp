@@ -174,7 +174,6 @@ int CmdCompletionTags::execute(std::string& output) {
   unique["DUE"] = 0;
   unique["DUETODAY"] = 0;  // 2016-03-29: Deprecated in 2.6.0
   unique["INSTANCE"] = 0;
-  unique["LATEST"] = 0;
   unique["MONTH"] = 0;
   unique["ORPHAN"] = 0;
   unique["OVERDUE"] = 0;

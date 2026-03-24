@@ -89,7 +89,7 @@ void TDB2::add(Task& task) {
   invalidate_cached_info();
 
   // Assign the 8-char hex UUID prefix as the task ID.
-  task.id = task.get("uuid").substr(0, 8);
+  task.id = (uuid.length() >= 8) ? uuid.substr(0, 8) : "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -128,6 +128,7 @@ void ColumnDepends::render(std::vector<std::string>& lines, Task& task, int widt
 void ColumnDepends::modify(Task& task, const std::string& value) {
   // Apply or remove dendencies in turn.
   for (auto& dep : split(value, ',')) {
+    if (dep.empty()) continue;
     bool removal = false;
     if (dep[0] == '-') {
       removal = true;

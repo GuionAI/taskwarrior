@@ -8,6 +8,7 @@ import shutil
 import sqlite3
 import tempfile
 import unittest
+import warnings
 from .exceptions import CommandError
 from .hooks import Hooks
 from .utils import (
@@ -242,20 +243,6 @@ class Task(object):
         for m in re.finditer(r"Created task ([0-9a-f]{8})\.", out):
             self._task_ids.append(m.group(1))
 
-    def _get_all_task_ids_from_db(self):
-        """Return list of all task 8-char hex prefixes from the DB, ordered by entry_at."""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            rows = conn.execute(
-                "SELECT SUBSTR(id, 1, 8) FROM tc_tasks_data "
-                "WHERE user_id = ? ORDER BY entry_at",
-                (TEST_USER_ID,),
-            ).fetchall()
-            conn.close()
-            return [r[0] for r in rows]
-        except Exception:
-            return []
-
     def _track_add_from_db(self, known_ids_set):
         """Find pending task IDs added since before the command and append them to _task_ids.
 
@@ -272,7 +259,8 @@ class Task(object):
             ).fetchall()
             conn.close()
             all_ids = [r[0] for r in rows]
-        except Exception:
+        except sqlite3.Error as e:
+            warnings.warn(f"_track_add_from_db: DB query failed ({e}); numeric ID translation may be broken")
             all_ids = []
         for hex_id in all_ids:
             if hex_id not in known_ids_set and hex_id not in self._task_ids:

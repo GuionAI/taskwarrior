@@ -1259,20 +1259,25 @@ void CLI2::desugarFilterPatterns() {
 //   a comma-separated list: a1b2c3d4,e5f6a7b8
 //
 static bool looksLikeHexPrefix(const std::string& s) {
-  if (s.empty()) return false;
+  if (s.length() != 8) return false;
   for (char c : s)
     if (!std::isxdigit(static_cast<unsigned char>(c))) return false;
   return true;
 }
 
-// Returns true if s is a comma-separated list of hex prefixes (e.g. "a1b2c3d4,e5f6a7b8").
-static bool looksLikeHexPrefixList(const std::string& s) {
-  if (s.empty()) return false;
-  auto elements = split(s, ',');
-  if (elements.size() < 2) return false;
-  for (const auto& e : elements)
-    if (!looksLikeHexPrefix(e)) return false;
-  return true;
+// Pushes all hex-prefix elements from a comma-separated string into _uuid_list.
+// Returns true if any were added.
+static bool pushHexPrefixesFromSet(const std::string& raw,
+                                   std::vector<std::string>& uuid_list) {
+  auto elements = split(raw, ',');
+  bool any = false;
+  for (auto& element : elements) {
+    if (looksLikeHexPrefix(element)) {
+      uuid_list.push_back(element);
+      any = true;
+    }
+  }
+  return any;
 }
 
 void CLI2::findIDs() {
@@ -1295,23 +1300,10 @@ void CLI2::findIDs() {
             looksLikeHexPrefix(raw)) {
           changes = true;
           _uuid_list.push_back(raw);
-        } else if (isWordOrIdent && !previousFilterArgWasAnOperator &&
-                   looksLikeHexPrefixList(raw)) {
-          // Comma-separated list of hex prefixes passed as a single word/identifier token.
-          auto elements = split(raw, ',');
-          for (auto& element : elements) {
-            changes = true;
-            _uuid_list.push_back(element);
-          }
         } else if (a._lextype == Lexer::Type::set) {
           // Comma-separated list — each element may be a hex prefix.
-          auto elements = split(raw, ',');
-          for (auto& element : elements) {
-            if (looksLikeHexPrefix(element)) {
-              changes = true;
-              _uuid_list.push_back(element);
-            }
-          }
+          if (pushHexPrefixesFromSet(raw, _uuid_list))
+            changes = true;
         }
 
         previousFilterArgWasAnOperator =
@@ -1334,15 +1326,7 @@ void CLI2::findIDs() {
               a.tag("FILTER");
               _uuid_list.push_back(raw);
             } else if (a._lextype == Lexer::Type::set) {
-              auto elements = split(raw, ',');
-              bool any = false;
-              for (auto& element : elements) {
-                if (looksLikeHexPrefix(element)) {
-                  _uuid_list.push_back(element);
-                  any = true;
-                }
-              }
-              if (any) {
+              if (pushHexPrefixesFromSet(raw, _uuid_list)) {
                 changes = true;
                 a.unTag("MODIFICATION");
                 a.tag("FILTER");
