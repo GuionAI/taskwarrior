@@ -119,6 +119,7 @@ std::string configurationDefaults =
     "tag.indicator=+                                # What to show as a tag indicator\n"
     "dependency.indicator=D                         # What to show as a dependency indicator\n"
     "tree.depth=0                                   # Maximum depth for tree display (0 = unlimited)\n"
+    "tree.filter=status:pending -WAITING            # Default filter for tree display\n"
     "recurrence=1                                   # Enables recurrence\n"
     "recurrence.confirmation=prompt                 # Confirmation for recurrence changes (prompt|yes|no)\n"
     "recurrence.indicator=R                         # What to show as a recurrence indicator\n"

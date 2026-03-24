@@ -602,6 +602,113 @@ class TestRecurrenceTreeCoexistence(TestCase):
         self.assertNotIn("Weekly", out)
 
 
+class TestTreeDefaultFilter(TestCase):
+    """Tests for tree.filter default — plain 'task tree' excludes completed/deleted roots."""
+
+    def setUp(self):
+        self.t = Task()
+
+    def test_plain_tree_excludes_completed_roots(self):
+        """task tree (no args) does not show completed root tasks."""
+        self.t("add Pending Root")
+        self.t("add Completed Root")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        completed_uuid = get_uuid(self.t, "Completed Root")
+
+        self.t(f"rc.confirmation=no {completed_uuid[:8]} done")
+
+        code, out, err = self.t("tree")
+        self.assertIn(pending_uuid[:8], out)
+        self.assertNotIn(completed_uuid[:8], out)
+
+    def test_plain_tree_excludes_deleted_roots(self):
+        """task tree (no args) does not show deleted root tasks."""
+        self.t("add Pending Root")
+        self.t("add Deleted Root")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        deleted_uuid = get_uuid(self.t, "Deleted Root")
+
+        self.t(f"{deleted_uuid[:8]} delete", input="y\n")
+
+        code, out, err = self.t("tree")
+        self.assertIn(pending_uuid[:8], out)
+        self.assertNotIn(deleted_uuid[:8], out)
+
+    def test_plain_tree_includes_pending_children_of_pending_roots(self):
+        """task tree shows pending root and its pending children."""
+        self.t("add Root Task")
+        root_uuid = get_uuid(self.t, "Root Task")
+        self.t(f"add Child Task parent_id:{root_uuid}")
+        child_uuid = get_uuid(self.t, "Child Task")
+
+        code, out, err = self.t("tree")
+        self.assertIn(root_uuid[:8], out)
+        self.assertIn("Child Task", out)
+
+    def test_tree_filter_override_via_taskrc(self):
+        """Setting rc.tree.filter= (empty) shows completed/deleted roots."""
+        self.t("add Pending Root")
+        self.t("add Completed Root")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        completed_uuid = get_uuid(self.t, "Completed Root")
+
+        self.t(f"rc.confirmation=no {completed_uuid[:8]} done")
+
+        # Empty tree.filter override — should show all tasks including completed
+        code, out, err = self.t("rc.tree.filter= tree")
+        self.assertIn(pending_uuid[:8], out)
+        self.assertIn(completed_uuid[:8], out)
+
+    def test_plain_tree_excludes_waiting_roots(self):
+        """task tree (no args) excludes waiting tasks (-WAITING in default filter)."""
+        self.t("add Pending Root")
+        self.t("add Waiting Root wait:tomorrow")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        waiting_uuid = get_uuid(self.t, "Waiting Root")
+
+        code, out, err = self.t("tree")
+        self.assertIn(pending_uuid[:8], out)
+        self.assertNotIn(waiting_uuid[:8], out)
+
+        # Empty override should reveal the waiting task
+        code, out, err = self.t("rc.tree.filter= tree")
+        self.assertIn(waiting_uuid[:8], out)
+
+    def test_plain_tree_shows_completed_child_of_pending_root_with_indicator(self):
+        """Completed child of a pending root shows with [done] indicator.
+
+        The default filter applies only to visual roots — descendants are always
+        rendered (with status indicators) so the full subtree stays visible.
+        """
+        self.t("add Root Task")
+        root_uuid = get_uuid(self.t, "Root Task")
+        self.t(f"add Done Child parent_id:{root_uuid}")
+        child_uuid = get_uuid(self.t, "Done Child")
+
+        self.t(f"rc.confirmation=no {child_uuid[:8]} done")
+
+        code, out, err = self.t("tree")
+        self.assertIn(root_uuid[:8], out)
+        self.assertIn(child_uuid[:8], out)
+        self.assertIn("[done]", out)
+
+    def test_tree_user_filter_and_default_filter_compose(self):
+        """task tree project:Foo shows only pending tasks in that project."""
+        self.t("add Alpha project:Foo")
+        self.t("add Beta project:Bar")
+        self.t("add Gamma project:Foo")
+        alpha_uuid = get_uuid(self.t, "Alpha")
+        beta_uuid = get_uuid(self.t, "Beta")
+        gamma_uuid = get_uuid(self.t, "Gamma")
+
+        self.t(f"rc.confirmation=no {gamma_uuid[:8]} done")
+
+        code, out, err = self.t("rc.context= tree project:Foo")
+        self.assertIn(alpha_uuid[:8], out)
+        self.assertNotIn(beta_uuid[:8], out)
+        self.assertNotIn(gamma_uuid[:8], out)
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 

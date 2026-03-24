@@ -93,7 +93,12 @@ void CmdTree::renderTree(std::string& output, const rust::Box<tc::TreeMapWrapper
 int CmdTree::execute(std::string& output) {
   int maxDepth = Context::getContext().config.getInteger("tree.depth");
 
-  // Apply filter first — avoid expensive tree_map() if no tasks match.
+  // Apply default tree filter (mirrors CmdCustom's report.<name>.filter pattern).
+  auto treeFilter = Context::getContext().config.get("tree.filter");
+  if (!treeFilter.empty())
+    Context::getContext().cli2.addFilter(treeFilter);
+
+  // Apply filter — includes tree.filter + any user-provided filter args + context.
   Filter filter;
   std::vector<Task> filtered;
   filter.subset(filtered);
