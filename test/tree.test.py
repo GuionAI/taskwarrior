@@ -602,6 +602,63 @@ class TestRecurrenceTreeCoexistence(TestCase):
         self.assertNotIn("Weekly", out)
 
 
+class TestTreeDefaultFilter(TestCase):
+    """Tests for tree.filter default — plain 'task tree' excludes completed/deleted roots."""
+
+    def setUp(self):
+        self.t = Task()
+
+    def test_plain_tree_excludes_completed_roots(self):
+        """task tree (no args) does not show completed root tasks."""
+        self.t("add Pending Root")
+        self.t("add Completed Root")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        completed_uuid = get_uuid(self.t, "Completed Root")
+
+        self.t(f"rc.confirmation=no {completed_uuid[:8]} done")
+
+        code, out, err = self.t("tree")
+        self.assertIn(pending_uuid[:8], out)
+        self.assertNotIn(completed_uuid[:8], out)
+
+    def test_plain_tree_excludes_deleted_roots(self):
+        """task tree (no args) does not show deleted root tasks."""
+        self.t("add Pending Root")
+        self.t("add Deleted Root")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        deleted_uuid = get_uuid(self.t, "Deleted Root")
+
+        self.t(f"{deleted_uuid[:8]} delete", input="y\n")
+
+        code, out, err = self.t("tree")
+        self.assertIn(pending_uuid[:8], out)
+        self.assertNotIn(deleted_uuid[:8], out)
+
+    def test_plain_tree_includes_pending_children_of_pending_roots(self):
+        """task tree shows pending root and its pending children."""
+        self.t("add Root Task")
+        root_uuid = get_uuid(self.t, "Root Task")
+        self.t(f"add Child Task parent_id:{root_uuid}")
+        child_uuid = get_uuid(self.t, "Child Task")
+
+        code, out, err = self.t("tree")
+        self.assertIn(root_uuid[:8], out)
+        self.assertIn("Child Task", out)
+
+    def test_tree_filter_override_via_taskrc(self):
+        """Setting rc.tree.filter= (empty) shows completed/deleted roots."""
+        self.t("add Pending Root")
+        self.t("add Completed Root")
+        pending_uuid = get_uuid(self.t, "Pending Root")
+        completed_uuid = get_uuid(self.t, "Completed Root")
+
+        self.t(f"rc.confirmation=no {completed_uuid[:8]} done")
+
+        # Empty tree.filter override — should show all tasks including completed
+        code, out, err = self.t("rc.tree.filter= tree")
+        self.assertIn(completed_uuid[:8], out)
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 
