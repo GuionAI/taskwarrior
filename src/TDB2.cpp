@@ -305,6 +305,15 @@ bool TDB2::get(const std::string& uuid, Task& task) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Resolve a UUID prefix (or full UUID) to the canonical full 36-char UUID.
+// Uses get() which supports prefix matching via closeEnough(). Throws if not found.
+std::string TDB2::resolve_uuid(const std::string& prefix) {
+  Task t;
+  if (!get(prefix, t)) throw std::string("Task '" + prefix + "' does not exist.");
+  return t.get("uuid");
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Locate task by UUID, wherever it is.
 bool TDB2::has(const std::string& uuid) {
   return replica()->get_task_data(tc::uuid_from_string(uuid)).is_some();

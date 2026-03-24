@@ -1499,14 +1499,11 @@ void Task::validate(bool applyDefault /* = true */) {
 #ifdef PRODUCT_TASKWARRIOR
   // Validate parent_id field for tree hierarchy.
   if (has("parent_id") && get("parent_id") != "") {
-    // Resolve prefix to full UUID (TDB2::get handles prefix matching via closeEnough()).
-    Task parent_task;
-    if (!Context::getContext().tdb2.get(get("parent_id"), parent_task))
-      throw std::string("Parent task '" + get("parent_id") + "' does not exist.");
-    auto full_parent_uuid = parent_task.get("uuid");
+    // Resolve prefix to full UUID; throws if task not found.
+    auto full_parent_uuid = Context::getContext().tdb2.resolve_uuid(get("parent_id"));
 
-    // Store the resolved full UUID back into the task so all downstream
-    // FFI calls (uuid_from_string) always receive a full 36-char UUID.
+    // Store the resolved full UUID back so all downstream FFI calls
+    // (uuid_from_string) always receive a full 36-char UUID.
     if (get("parent_id") != full_parent_uuid)
       set("parent_id", full_parent_uuid);
 
@@ -2030,13 +2027,10 @@ void Task::modify(modType type, bool text_required /* = false */) {
     std::string parent_uuid = get("parent_id");
     bool at_root = parent_uuid.empty();
 
-    // Verify parent exists if this task has one (guards against dangling parent).
-    // Also resolves any 8-char prefix to the full UUID for downstream FFI calls.
+    // Verify parent exists if this task has one and resolve any prefix to
+    // a full UUID before downstream FFI calls.
     if (!at_root) {
-      Task parent_task;
-      if (!Context::getContext().tdb2.get(parent_uuid, parent_task))
-        throw std::string("Cannot reorder: parent task '" + parent_uuid + "' does not exist.");
-      auto full_uuid = parent_task.get("uuid");
+      auto full_uuid = Context::getContext().tdb2.resolve_uuid(parent_uuid);
       if (parent_uuid != full_uuid) {
         parent_uuid = full_uuid;
         set("parent_id", full_uuid);
@@ -2050,7 +2044,10 @@ void Task::modify(modType type, bool text_required /* = false */) {
     tc::Uuid self_tc = tc::uuid_from_string(get("uuid"));
     auto siblings = tm->sibling_positions(parent_tc, at_root, self_tc, true);
 
-    std::string target_uuid = has_after ? get("after") : get("before");
+    // Resolve before:/after: target prefix to a full UUID so the string
+    // comparison against siblings[i].uuid.to_string() (always full UUID) works.
+    std::string target_uuid =
+        Context::getContext().tdb2.resolve_uuid(has_after ? get("after") : get("before"));
     remove(has_after ? "after" : "before");
 
     std::string target_pos, neighbor_pos;

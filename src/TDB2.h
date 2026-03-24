@@ -58,6 +58,9 @@ class TDB2 {
   const std::vector<Task> completed_tasks();
   bool get(const std::string&, Task&);
   bool has(const std::string&);
+  // Resolve a UUID prefix (or full UUID) to the canonical full 36-char UUID.
+  // Throws std::string if no matching task is found.
+  std::string resolve_uuid(const std::string& prefix);
   const std::vector<Task> children(const std::string& parent_uuid);
   const std::vector<Task> descendants(const std::string& parent_uuid);
   rust::Box<tc::TreeMapWrapper> tree_map();

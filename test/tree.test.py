@@ -212,6 +212,14 @@ class TestTreeValidation(TestCase):
         code, out, err = self.t.runError(f"add Child parent_id:00000000")
         self.assertIn("does not exist", err + out)
 
+    def test_self_parent_via_prefix_rejected(self):
+        """A task cannot be its own parent even when prefix is used."""
+        self.t("add Task A")
+        uuid = get_uuid(self.t, "Task A")
+
+        code, out, err = self.t.runError(f"{uuid[:8]} modify parent_id:{uuid[:8]}")
+        self.assertIn("cannot be its own parent", err + out)
+
 
 class TestTreeDone(TestCase):
     """Tests for recursive completion."""
