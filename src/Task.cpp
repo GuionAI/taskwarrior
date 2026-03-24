@@ -1429,7 +1429,7 @@ void Task::validate(bool applyDefault /* = true */) {
   // Provide a modified date unless user already specified one.
   if (!has("modified") || get("modified") == "") setAsNow("modified");
 
-  if (applyDefault && (!has("parent") || get("parent") == "")) {
+  if (applyDefault && (!has("parent_id") || get("parent_id") == "")) {
     // Override with default.project, if not specified.
     if (Task::defaultProject != "" && !has("project")) {
       if (Context::getContext().columns["project"]->validate(Task::defaultProject))
@@ -1498,8 +1498,8 @@ void Task::validate(bool applyDefault /* = true */) {
 
 #ifdef PRODUCT_TASKWARRIOR
   // Validate parent field for tree hierarchy.
-  if (has("parent") && get("parent") != "") {
-    auto parent_uuid = get("parent");
+  if (has("parent_id") && get("parent_id") != "") {
+    auto parent_uuid = get("parent_id");
     auto my_uuid = get("uuid");
 
     // Validate parent UUID format before calling uuid_from_string (which panics on bad input).
@@ -1508,7 +1508,7 @@ void Task::validate(bool applyDefault /* = true */) {
       std::string token;
       Lexer::Type type;
       if (!lex.isUUID(token, type, true))
-        throw format("'parent' value '{1}' is not a valid UUID.", parent_uuid);
+        throw format("'parent_id' value '{1}' is not a valid UUID.", parent_uuid);
     }
 
     // Prevent self-parenting.
@@ -2032,7 +2032,7 @@ void Task::modify(modType type, bool text_required /* = false */) {
     if (has_before && has_after)
       throw std::string("Cannot specify both before: and after: simultaneously.");
 
-    std::string parent_uuid = get("parent");
+    std::string parent_uuid = get("parent_id");
     bool at_root = parent_uuid.empty();
 
     // Verify parent exists if this task has one (guards against dangling parent).

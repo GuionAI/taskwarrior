@@ -51,25 +51,25 @@ class TestTreeAdd(TestCase):
         self.t = Task()
 
     def test_add_creates_child_relationship(self):
-        """Adding a task with parent: sets parent field."""
+        """Adding a task with parent_id: sets parent field."""
         self.t("rc.verbose=new-uuid add Project Alpha")
         parent_uuid = get_uuid(self.t, "Project Alpha")
 
-        self.t(f"rc.verbose=new-uuid add Research parent:{parent_uuid}")
+        self.t(f"rc.verbose=new-uuid add Research parent_id:{parent_uuid}")
         child_tasks = self.t.export()
         child = next(
             (t for t in child_tasks if t.get("description") == "Research"), None
         )
         self.assertIsNotNone(child)
-        self.assertEqual(child.get("parent"), parent_uuid)
+        self.assertEqual(child.get("parent_id"), parent_uuid)
 
     def test_add_parent_sets_position(self):
         """Adding a child task assigns a position."""
         self.t("add Project")
         parent_uuid = get_uuid(self.t, "Project")
 
-        self.t(f"add Task1 parent:{parent_uuid}")
-        self.t(f"add Task2 parent:{parent_uuid}")
+        self.t(f"add Task1 parent_id:{parent_uuid}")
+        self.t(f"add Task2 parent_id:{parent_uuid}")
 
         tasks = self.t.export()
         task1 = next(t for t in tasks if t.get("description") == "Task1")
@@ -98,8 +98,8 @@ class TestTreeDisplay(TestCase):
         """task tree shows box-drawing tree output."""
         self.t("add Project")
         parent_uuid = get_uuid(self.t, "Project")
-        self.t(f"add Research parent:{parent_uuid}")
-        self.t(f"add Implementation parent:{parent_uuid}")
+        self.t(f"add Research parent_id:{parent_uuid}")
+        self.t(f"add Implementation parent_id:{parent_uuid}")
 
         code, out, err = self.t(f"{parent_uuid[:8]} tree")
         self.assertIn("[" + parent_uuid[:8] + "] Project", out)
@@ -116,7 +116,7 @@ class TestTreeDisplay(TestCase):
         """Filtering to single task shows subtree."""
         self.t("add Root")
         root_uuid = get_uuid(self.t, "Root")
-        self.t(f"add Child parent:{root_uuid}")
+        self.t(f"add Child parent_id:{root_uuid}")
 
         code, out, err = self.t(f"{root_uuid[:8]} tree")
         self.assertIn("[" + root_uuid[:8] + "]", out)
@@ -126,7 +126,7 @@ class TestTreeDisplay(TestCase):
         """Completed tasks show [done] in tree output."""
         self.t("add Root")
         root_uuid = get_uuid(self.t, "Root")
-        self.t(f"add Child parent:{root_uuid}")
+        self.t(f"add Child parent_id:{root_uuid}")
         child_uuid = get_uuid(self.t, "Child")
 
         self.t(f"{child_uuid[:8]} rc.confirmation=no done")
@@ -147,7 +147,7 @@ class TestTreeValidation(TestCase):
         uuid = get_uuid(self.t, "Task A")
 
         code, out, err = self.t.runError(
-            f"{uuid[:8]} modify parent:{uuid}"
+            f"{uuid[:8]} modify parent_id:{uuid}"
         )
         self.assertIn("cannot be its own parent", err + out)
 
@@ -159,11 +159,11 @@ class TestTreeValidation(TestCase):
         uuid_b = get_uuid(self.t, "Task B")
 
         # Make B a child of A
-        self.t(f"{uuid_b[:8]} modify parent:{uuid_a}")
+        self.t(f"{uuid_b[:8]} modify parent_id:{uuid_a}")
 
         # Try to make A a child of B (would create cycle)
         code, out, err = self.t.runError(
-            f"{uuid_a[:8]} modify parent:{uuid_b}"
+            f"{uuid_a[:8]} modify parent_id:{uuid_b}"
         )
         self.assertIn("Circular reference", err + out)
 
@@ -174,7 +174,7 @@ class TestTreeValidation(TestCase):
         fake_uuid = "00000000-0000-0000-0000-000000000099"
 
         code, out, err = self.t.runError(
-            f"{uuid[:8]} modify parent:{fake_uuid}"
+            f"{uuid[:8]} modify parent_id:{fake_uuid}"
         )
         self.assertIn("does not exist", err + out)
 
@@ -189,8 +189,8 @@ class TestTreeDone(TestCase):
         """Completing a parent auto-completes all descendants."""
         self.t("add Project")
         parent_uuid = get_uuid(self.t, "Project")
-        self.t(f"add Task1 parent:{parent_uuid}")
-        self.t(f"add Task2 parent:{parent_uuid}")
+        self.t(f"add Task1 parent_id:{parent_uuid}")
+        self.t(f"add Task2 parent_id:{parent_uuid}")
         task1_uuid = get_uuid(self.t, "Task1")
         task2_uuid = get_uuid(self.t, "Task2")
 
@@ -212,7 +212,7 @@ class TestTreeDelete(TestCase):
         """Deleting a parent with children prompts and deletes all."""
         self.t("add Project")
         parent_uuid = get_uuid(self.t, "Project")
-        self.t(f"add Child parent:{parent_uuid}")
+        self.t(f"add Child parent_id:{parent_uuid}")
         child_uuid = get_uuid(self.t, "Child")
 
         # Answer yes to both: parent deletion prompt and child deletion prompt.
@@ -247,7 +247,7 @@ class TestPlanCommand(TestCase):
         # Both subtasks should have parent set
         for task in tasks:
             if task["description"] in ("Research", "Implementation"):
-                self.assertEqual(task.get("parent"), parent_uuid)
+                self.assertEqual(task.get("parent_id"), parent_uuid)
 
     def test_plan_nested_headings(self):
         """### headings become grandchildren."""
@@ -267,7 +267,7 @@ class TestPlanCommand(TestCase):
             (t for t in tasks if t.get("description") == "Backend"), None
         )
         self.assertIsNotNone(backend)
-        self.assertEqual(backend.get("parent"), phase1["uuid"])
+        self.assertEqual(backend.get("parent_id"), phase1["uuid"])
 
     def test_plan_replace_removes_existing(self):
         """task plan replace deletes existing children first."""
@@ -308,13 +308,13 @@ class TestPositionOrdering(TestCase):
         self.t("add Root")
         root_uuid = get_uuid(self.t, "Root")
 
-        self.t(f"add First parent:{root_uuid}")
-        self.t(f"add Second parent:{root_uuid}")
-        self.t(f"add Third parent:{root_uuid}")
+        self.t(f"add First parent_id:{root_uuid}")
+        self.t(f"add Second parent_id:{root_uuid}")
+        self.t(f"add Third parent_id:{root_uuid}")
 
         tasks = self.t.export()
         children = sorted(
-            [t for t in tasks if t.get("parent") == root_uuid],
+            [t for t in tasks if t.get("parent_id") == root_uuid],
             key=lambda t: t.get("position", "")
         )
         descriptions = [t["description"] for t in children]
@@ -331,9 +331,9 @@ class TestSiblingReordering(TestCase):
         """Create root with three children, return (root, first, second, third) UUIDs."""
         self.t("add Root")
         root_uuid = get_uuid(self.t, "Root")
-        self.t(f"add First parent:{root_uuid}")
-        self.t(f"add Second parent:{root_uuid}")
-        self.t(f"add Third parent:{root_uuid}")
+        self.t(f"add First parent_id:{root_uuid}")
+        self.t(f"add Second parent_id:{root_uuid}")
+        self.t(f"add Third parent_id:{root_uuid}")
         first_uuid = get_uuid(self.t, "First")
         second_uuid = get_uuid(self.t, "Second")
         third_uuid = get_uuid(self.t, "Third")
@@ -348,7 +348,7 @@ class TestSiblingReordering(TestCase):
 
         tasks = self.t.export()
         children = sorted(
-            [t for t in tasks if t.get("parent") == root_uuid],
+            [t for t in tasks if t.get("parent_id") == root_uuid],
             key=lambda t: t.get("position", "")
         )
         descriptions = [t["description"] for t in children]
@@ -363,7 +363,7 @@ class TestSiblingReordering(TestCase):
 
         tasks = self.t.export()
         children = sorted(
-            [t for t in tasks if t.get("parent") == root_uuid],
+            [t for t in tasks if t.get("parent_id") == root_uuid],
             key=lambda t: t.get("position", "")
         )
         descriptions = [t["description"] for t in children]
@@ -378,7 +378,7 @@ class TestSiblingReordering(TestCase):
 
         tasks = self.t.export()
         children = sorted(
-            [t for t in tasks if t.get("parent") == root_uuid],
+            [t for t in tasks if t.get("parent_id") == root_uuid],
             key=lambda t: t.get("position", "")
         )
         self.assertEqual(children[-1]["description"], "First")
@@ -392,7 +392,7 @@ class TestSiblingReordering(TestCase):
 
         tasks = self.t.export()
         children = sorted(
-            [t for t in tasks if t.get("parent") == root_uuid],
+            [t for t in tasks if t.get("parent_id") == root_uuid],
             key=lambda t: t.get("position", "")
         )
         self.assertEqual(children[0]["description"], "Third")
@@ -427,7 +427,7 @@ class TestTreeFullMode(TestCase):
         """Child with unmatched parent appears as root in full-tree mode."""
         self.t("add Parent")
         parent_uuid = get_uuid(self.t, "Parent")
-        self.t(f"add Child parent:{parent_uuid}")
+        self.t(f"add Child parent_id:{parent_uuid}")
         child_uuid = get_uuid(self.t, "Child")
 
         # Filter to only the child — it should appear as root since parent not matched.
@@ -438,9 +438,9 @@ class TestTreeFullMode(TestCase):
         """Last matched child gets └─ not ├─ even if unmatched siblings exist."""
         self.t("add Root")
         root_uuid = get_uuid(self.t, "Root")
-        self.t(f"add First parent:{root_uuid}")
-        self.t(f"add Second parent:{root_uuid}")
-        self.t(f"add Third parent:{root_uuid}")
+        self.t(f"add First parent_id:{root_uuid}")
+        self.t(f"add Second parent_id:{root_uuid}")
+        self.t(f"add Third parent_id:{root_uuid}")
         first_uuid = get_uuid(self.t, "First")
         third_uuid = get_uuid(self.t, "Third")
 
@@ -488,7 +488,7 @@ class TestTreeDeleteIndicator(TestCase):
         """Deleted tasks show [del] in tree output."""
         self.t("add Root")
         root_uuid = get_uuid(self.t, "Root")
-        self.t(f"add Child parent:{root_uuid}")
+        self.t(f"add Child parent_id:{root_uuid}")
         child_uuid = get_uuid(self.t, "Child")
 
         # Delete the child (answer no to child-of-child prompt — child has no children)
@@ -496,6 +496,22 @@ class TestTreeDeleteIndicator(TestCase):
 
         code, out, err = self.t(f"{root_uuid[:8]} tree")
         self.assertIn("[del]", out)
+
+
+class TestTreeExportKey(TestCase):
+    """Tests for correct JSON export key usage."""
+
+    def setUp(self):
+        self.t = Task()
+
+    def test_export_uses_parent_id_key(self):
+        """Exported JSON uses parent_id key, not parent."""
+        self.t("add Project")
+        parent_uuid = get_uuid(self.t, "Project")
+        self.t(f"add Child parent_id:{parent_uuid}")
+        code, out, err = self.t("export")
+        self.assertIn('"parent_id":', out)
+        self.assertNotIn('"parent":', out)
 
 
 if __name__ == "__main__":

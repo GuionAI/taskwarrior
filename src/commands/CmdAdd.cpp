@@ -61,9 +61,9 @@ int CmdAdd::execute(std::string& output) {
   task.validate_add();
 
   // Compute position if task has a parent (append to end of parent's children).
-  if (task.has("parent") && task.get("parent") != "") {
+  if (task.has("parent_id") && task.get("parent_id") != "") {
     static constexpr const char* TC_NIL_UUID = "00000000-0000-0000-0000-000000000000";
-    auto parent_uuid = task.get("parent");
+    auto parent_uuid = task.get("parent_id");
     auto tm = Context::getContext().tdb2.tree_map();
     if (tm->had_invalid_data())
       Context::getContext().footnote(
@@ -88,9 +88,9 @@ int CmdAdd::execute(std::string& output) {
 
   std::string shortUuid = task.get("uuid").substr(0, 8);
   std::string parentSuffix;
-  if (task.has("parent") && task.get("parent") != "") {
+  if (task.has("parent_id") && task.get("parent_id") != "") {
     Task parent_task;
-    if (Context::getContext().tdb2.get(task.get("parent"), parent_task))
+    if (Context::getContext().tdb2.get(task.get("parent_id"), parent_task))
       parentSuffix = format(" (child of '{1}')", parent_task.get("description"));
   }
 

@@ -147,7 +147,7 @@ int CmdTree::execute(std::string& output) {
   std::vector<std::string> visualRoots;
   for (auto& task : filtered) {
     std::string uuid = task.get("uuid");
-    std::string parent = task.get("parent");
+    std::string parent = task.get("parent_id");
     if (parent.empty() || matchedUuids.find(parent) == matchedUuids.end()) {
       visualRoots.push_back(uuid);
     }

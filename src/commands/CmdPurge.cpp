@@ -80,7 +80,7 @@ void CmdPurge::checkPendingChildren(Task& task) {
   std::string uuid = task.get("uuid");
   for (auto& childConst : Context::getContext().tdb2.all_tasks()) {
     Task& child = const_cast<Task&>(childConst);
-    if (child.get("parent") == uuid &&
+    if (child.get("parent_id") == uuid &&
         child.getStatus() != Task::deleted &&
         child.getStatus() != Task::completed) {
       throw format(
