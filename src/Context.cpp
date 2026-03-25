@@ -81,9 +81,10 @@ std::string configurationDefaults =
     "# Use the command 'task show' to see all defaults and overrides\n"
     "\n"
     "# Files\n"
+    "data.location=~/.task\n"
     "gc=1                                           # Garbage-collect data files - DO NOT CHANGE "
     "unless you are sure\n"
-    "hooks=0                                        # Master control switch for hooks (off by default)\n"
+    "hooks=1                                        # Master control switch for hooks\n"
     "\n"
     "# Terminal\n"
     "detection=1                                    # Detects terminal width\n"
@@ -511,29 +512,110 @@ int Context::initialize(int argc, const char** argv) {
   try {
     ////////////////////////////////////////////////////////////////////////////
     //
-    // [1] Read PowerSync config from environment and load defaults.
+    // [1] Load the correct config file.
+    //     - Default to ~/.taskrc (ctor).
+    //     - If no ~/.taskrc, use $XDG_CONFIG_HOME/task/taskrc if exists, or
+    //       ~/.config/task/taskrc if $XDG_CONFIG_HOME is unset
+    //     - Allow $TASKRC override.
+    //     - Allow command line override rc:<file>
+    //     - Load resultant file.
+    //     - Apply command line overrides to the config.
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    char* ps_db_path = getenv("POWERSYNC_DB_PATH");
-    char* ps_user_id = getenv("POWERSYNC_USER_ID");
-    if (!ps_db_path) {
-      throw std::string("POWERSYNC_DB_PATH environment variable must be set");
-    }
-    if (!ps_user_id) {
-      throw std::string("POWERSYNC_USER_ID environment variable must be set");
-    }
-    powersync_db_path = std::string(ps_db_path);
-    powersync_user_id = std::string(ps_user_id);
+    bool taskrc_overridden = false;
 
-    // Load configuration defaults and apply any rc.<setting>:<value> overrides from CLI.
+    // XDG_CONFIG_HOME doesn't count as an override (no warning header)
+    if (!rc_file.exists()) {
+      // Use XDG_CONFIG_HOME if defined, otherwise default to ~/.config
+      std::string xdg_config_home;
+      const char* env_xdg_config_home = getenv("XDG_CONFIG_HOME");
+
+      if (env_xdg_config_home)
+        xdg_config_home = format("{1}", env_xdg_config_home);
+      else
+        xdg_config_home = format("{1}/.config", home_dir);
+
+      // Ensure the path does not end with '/'
+      if (xdg_config_home.back() == '/') xdg_config_home.pop_back();
+
+      // https://github.com/GothenburgBitFactory/libshared/issues/32
+      std::string rcfile_path = format("{1}/task/taskrc", xdg_config_home);
+
+      File maybe_rc_file = File(rcfile_path);
+      if (maybe_rc_file.exists()) rc_file = maybe_rc_file;
+    }
+
+    char* override = getenv("TASKRC");
+    if (override) {
+      rc_file = File(override);
+      taskrc_overridden = true;
+    }
+
+    taskrc_overridden = CLI2::getOverride(argc, argv, rc_file) || taskrc_overridden;
+
+    // Artificial scope for timing purposes.
     {
       Timer timer;
       config.parse(configurationDefaults, 1, searchPaths);
-      debugTiming("Config::parse (defaults)", timer);
+      config.load(rc_file._data, 1, searchPaths);
+      debugTiming(format("Config::load ({1})", rc_file._data), timer);
     }
 
     CLI2::applyOverrides(argc, argv);
+
+    if (taskrc_overridden && verbose("override"))
+      header(format("TASKRC override: {1}", rc_file._data));
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    // [2] Locate the data directory and read PowerSync config.
+    //     - Default to ~/.task (ctor).
+    //     - Allow $TASKDATA override.
+    //     - Allow command line override rc.data.location:<dir>
+    //     - Read powersync.db_path and powersync.user_id from config.
+    //     - Allow POWERSYNC_DB_PATH / POWERSYNC_USER_ID env var overrides.
+    //     - Create the rc_file and data_dir, if necessary.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    bool taskdata_overridden = false;
+
+    override = getenv("TASKDATA");
+    if (override) {
+      data_dir = Directory(override);
+      config.set("data.location", data_dir._data);
+      taskdata_overridden = true;
+    }
+
+    taskdata_overridden = CLI2::getDataLocation(argc, argv, data_dir) || taskdata_overridden;
+
+    if (taskdata_overridden && verbose("override"))
+      header(format("TASKDATA override: {1}", data_dir._data));
+
+    createDefaultConfig();
+
+    // Read PowerSync config: taskrc first, env var override.
+    {
+      std::string ps_db = config.get("powersync.db_path");
+      std::string ps_uid = config.get("powersync.user_id");
+
+      char* env_ps_db = getenv("POWERSYNC_DB_PATH");
+      char* env_ps_uid = getenv("POWERSYNC_USER_ID");
+
+      if (env_ps_db) ps_db = std::string(env_ps_db);
+      if (env_ps_uid) ps_uid = std::string(env_ps_uid);
+
+      if (ps_db.empty()) {
+        throw std::string("powersync.db_path must be set in taskrc or POWERSYNC_DB_PATH env var");
+      }
+      if (ps_uid.empty()) {
+        throw std::string("powersync.user_id must be set in taskrc or POWERSYNC_USER_ID env var");
+      }
+
+      powersync_db_path = ps_db;
+      powersync_user_id = ps_uid;
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     //
