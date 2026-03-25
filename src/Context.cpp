@@ -1119,6 +1119,60 @@ void Context::getLimits(int& rows, int& lines) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void Context::createDefaultConfig() {
+  // Do we need to create a default rc?
+  if (rc_file._data != "" && !rc_file.exists()) {
+    // If stdout is not a file, we are probably executing in a completion context and should not
+    // prompt (as the user won't see it) or modify the config (as completion functions are typically
+    // read-only).
+    if (!isatty(STDOUT_FILENO)) {
+      throw std::string("Cannot proceed without rc file.");
+    }
+
+    if (config.getBoolean("confirmation") &&
+        !confirm(format("A configuration file could not be found in {1}\n\nWould you like a sample "
+                        "{2} created, so Taskwarrior can proceed?",
+                        home_dir, rc_file._data)))
+      throw std::string("Cannot proceed without rc file.");
+
+    Datetime now;
+    std::stringstream contents;
+    contents << "# [Created by " << PACKAGE_STRING << ' ' << now.toString("m/d/Y H:N:S") << "]\n"
+             << "data.location=" << data_dir._original << "\n"
+             << "news.version=" << Version::Current() << "\n"
+             << "\n# To use the default location of the XDG directories,\n"
+             << "# move this configuration file from ~/.taskrc to ~/.config/task/taskrc and update "
+                "location config as follows:\n"
+             << "\n#data.location=~/.local/share/task\n"
+             << "#hooks.location=~/.config/task/hooks\n"
+             << "\n# Color theme (uncomment one to use)\n"
+             << "#include light-16.theme\n"
+             << "#include light-256.theme\n"
+             << "#include bubblegum-256.theme\n"
+             << "#include dark-16.theme\n"
+             << "#include dark-256.theme\n"
+             << "#include dark-red-256.theme\n"
+             << "#include dark-green-256.theme\n"
+             << "#include dark-blue-256.theme\n"
+             << "#include dark-violets-256.theme\n"
+             << "#include dark-yellow-green.theme\n"
+             << "#include dark-gray-256.theme\n"
+             << "#include dark-gray-blue-256.theme\n"
+             << "#include solarized-dark-256.theme\n"
+             << "#include solarized-light-256.theme\n"
+             << "#include no-color.theme\n"
+             << '\n';
+
+    // Write out the new file.
+    if (!File::write(rc_file._data, contents.str()))
+      throw format("Could not write to '{1}'.", rc_file._data);
+
+    // Load it so that it takes effect for this run.
+    config.load(rc_file);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // The 'Task' object, among others, is shared between projects.  To make this
 // easier, it has been decoupled from Context.
 void Context::staticInitialization() {
