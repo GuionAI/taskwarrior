@@ -77,8 +77,10 @@ void TDB2::add(Task& task) {
 
   // add the task attributes
   for (auto& attr : task.all()) {
-    // TaskChampion does not store uuid or id in the task data
-    if (attr == "uuid" || attr == "id") {
+    // TaskChampion does not store uuid or id in the task data.
+    // tags and depends are legacy comma-separated strings; tch-native tag_*
+    // and dep_* keys already carry the same data, so skip the legacy keys.
+    if (attr == "uuid" || attr == "id" || attr == "tags" || attr == "depends") {
       continue;
     }
 
@@ -135,8 +137,9 @@ void TDB2::modify(Task& task) {
   // equal to those in `task`.
   std::unordered_set<std::string> seen;
   for (auto k : task.all()) {
-    // ignore task keys that aren't stored
-    if (k == "uuid") {
+    // ignore task keys that aren't stored, and legacy comma-separated keys
+    // whose data is already represented by tch-native tag_* and dep_* keys
+    if (k == "uuid" || k == "tags" || k == "depends") {
       continue;
     }
     seen.insert(k);
