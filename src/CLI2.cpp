@@ -218,15 +218,12 @@ bool CLI2::getOverride(int argc, const char** argv, File& rc) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Look for CONFIG data.location and initialize a Path object.
+// Look for a command-line rc.data.location:<dir> override and initialize a
+// Path object. Returns true only when a CLI override is present.
 // Static method.
 bool CLI2::getDataLocation(int argc, const char** argv, Path& data) {
   const char* value = getValue(argc, argv, "rc.data.location");
-  if (value == nullptr) {
-    std::string location = Context::getContext().config.get("data.location");
-    if (location != "") data = location;
-    return false;
-  }
+  if (value == nullptr) return false;
   data = Directory(value);
   return true;
 }

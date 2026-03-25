@@ -96,8 +96,14 @@ void Hooks::initialize() {
         }
       }
     }
-  } else if (_debug >= 1)
-    Context::getContext().debug("Hook directory not readable: " + d._data);
+  } else {
+    if (_debug >= 1)
+      Context::getContext().debug("Hook directory not readable: " + d._data);
+    else if (Context::getContext().config.has("hooks.location"))
+      Context::getContext().footnote(
+          "Hooks are enabled but hooks.location '" + d._data +
+          "' is missing or unreadable — no hooks will run.");
+  }
 
   _enabled = Context::getContext().config.getBoolean("hooks");
 }

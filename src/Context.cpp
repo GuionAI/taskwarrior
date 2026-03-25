@@ -537,7 +537,7 @@ int Context::initialize(int argc, const char** argv) {
         xdg_config_home = format("{1}/.config", home_dir);
 
       // Ensure the path does not end with '/'
-      if (xdg_config_home.back() == '/') xdg_config_home.pop_back();
+      if (!xdg_config_home.empty() && xdg_config_home.back() == '/') xdg_config_home.pop_back();
 
       // https://github.com/GothenburgBitFactory/libshared/issues/32
       std::string rcfile_path = format("{1}/task/taskrc", xdg_config_home);
@@ -588,7 +588,14 @@ int Context::initialize(int argc, const char** argv) {
       taskdata_overridden = true;
     }
 
-    taskdata_overridden = CLI2::getDataLocation(argc, argv, data_dir) || taskdata_overridden;
+    if (CLI2::getDataLocation(argc, argv, data_dir)) {
+      config.set("data.location", data_dir._data);
+      taskdata_overridden = true;
+    } else if (!taskdata_overridden) {
+      // No env or CLI override — sync data_dir from config (taskrc or default).
+      std::string config_location = config.get("data.location");
+      if (!config_location.empty()) data_dir = config_location;
+    }
 
     if (taskdata_overridden && verbose("override"))
       header(format("TASKDATA override: {1}", data_dir._data));
@@ -1130,9 +1137,9 @@ void Context::createDefaultConfig() {
     }
 
     if (config.getBoolean("confirmation") &&
-        !confirm(format("A configuration file could not be found in {1}\n\nWould you like a sample "
-                        "{2} created, so Taskwarrior can proceed?",
-                        home_dir, rc_file._data)))
+        !confirm(format("A configuration file could not be found at {1}\n\nWould you like a sample "
+                        "{1} created, so Taskwarrior can proceed?",
+                        rc_file._data)))
       throw std::string("Cannot proceed without rc file.");
 
     Datetime now;
