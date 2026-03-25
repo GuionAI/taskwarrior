@@ -45,6 +45,14 @@
 bool TDB2::debug_mode = false;
 static void dependency_scan(std::vector<Task>&);
 
+// Keys that must never be written to TaskChampion storage:
+//   uuid/id  — synthetic keys managed by tch itself
+//   tags     — legacy comma-separated representation; tch-native tag_* keys carry the same data
+//   depends  — legacy comma-separated representation; tch-native dep_* keys carry the same data
+static const std::unordered_set<std::string> kTCSkippedKeys = {
+    "uuid", "id", "tags", "depends"
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 void TDB2::open_replica(const std::string& db_path, const std::string& user_id) {
   _replica = tc::new_replica_powersync(db_path, user_id);
@@ -77,10 +85,7 @@ void TDB2::add(Task& task) {
 
   // add the task attributes
   for (auto& attr : task.all()) {
-    // TaskChampion does not store uuid or id in the task data.
-    // tags and depends are legacy comma-separated strings; tch-native tag_*
-    // and dep_* keys already carry the same data, so skip the legacy keys.
-    if (attr == "uuid" || attr == "id" || attr == "tags" || attr == "depends") {
+    if (kTCSkippedKeys.count(attr)) {
       continue;
     }
 
@@ -137,9 +142,7 @@ void TDB2::modify(Task& task) {
   // equal to those in `task`.
   std::unordered_set<std::string> seen;
   for (auto k : task.all()) {
-    // ignore task keys that aren't stored, and legacy comma-separated keys
-    // whose data is already represented by tch-native tag_* and dep_* keys
-    if (k == "uuid" || k == "tags" || k == "depends") {
+    if (kTCSkippedKeys.count(k)) {
       continue;
     }
     seen.insert(k);
@@ -162,7 +165,9 @@ void TDB2::modify(Task& task) {
     }
   }
 
-  // we've now added and updated properties; but must find any deleted properties
+  // we've now added and updated properties; but must find any deleted properties.
+  // This sweep also acts as a migration: any stale "tags" or "depends" keys
+  // written before this fix was deployed will be removed on the next modify().
   for (auto k : tctask->properties()) {
     auto kstr = static_cast<std::string>(k);
     if (seen.find(kstr) == seen.end()) {
