@@ -84,12 +84,15 @@ class Context {
   void updateVerbosity();
   void loadAliases();
   void propagateDebug();
+  void createDefaultConfig();
 
   static Context* context;
 
  public:
   CLI2 cli2{};
   std::string home_dir{};
+  File rc_file{"~/.taskrc"};
+  Path data_dir{"~/.task"};
   std::string powersync_db_path{};
   std::string powersync_user_id{};
   Configuration config{};

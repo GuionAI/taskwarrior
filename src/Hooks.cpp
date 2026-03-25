@@ -69,10 +69,14 @@
 void Hooks::initialize() {
   _debug = Context::getContext().config.getInteger("debug.hooks");
 
-  // Scan <rc.hooks.location> only (data.location is no longer used for hooks)
+  // Scan <rc.hooks.location>
+  //      <rc.data.location>/hooks
   Directory d;
   if (Context::getContext().config.has("hooks.location")) {
     d = Directory(Context::getContext().config.get("hooks.location"));
+  } else {
+    d = Directory(Context::getContext().config.get("data.location"));
+    d += "hooks";
   }
 
   if (d.is_directory() && d.readable()) {
@@ -92,15 +96,12 @@ void Hooks::initialize() {
         }
       }
     }
-  } else if (Context::getContext().config.getBoolean("hooks")) {
+  } else {
     if (_debug >= 1)
       Context::getContext().debug("Hook directory not readable: " + d._data);
-    else if (!Context::getContext().config.has("hooks.location"))
+    else if (Context::getContext().config.has("hooks.location"))
       Context::getContext().footnote(
-          "Hooks are enabled (rc.hooks=1) but hooks.location is not set — no hooks will run.");
-    else
-      Context::getContext().footnote(
-          "Hooks are enabled (rc.hooks=1) but hooks.location '" + d._data +
+          "Hooks are enabled but hooks.location '" + d._data +
           "' is missing or unreadable — no hooks will run.");
   }
 
@@ -463,7 +464,10 @@ std::vector<std::string>& Hooks::buildHookScriptArgs(std::vector<std::string>& a
   // Command to be executed.
   args.push_back("command:" + Context::getContext().cli2.getCommand());
 
-  // PowerSync db path.
+  // rc file used after applying all overrides.
+  args.push_back("rc:" + Context::getContext().rc_file._data);
+
+  // Directory containing data (PowerSync db path).
   args.push_back("data:" + Context::getContext().powersync_db_path);
 
   // Taskwarrior version, same as returned by "task --version"
