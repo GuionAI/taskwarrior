@@ -458,7 +458,10 @@ std::vector<std::string>& Hooks::buildHookScriptArgs(std::vector<std::string>& a
   // Command to be executed.
   args.push_back("command:" + Context::getContext().cli2.getCommand());
 
-  // PowerSync db path.
+  // rc file used after applying all overrides.
+  args.push_back("rc:" + Context::getContext().rc_file._data);
+
+  // Directory containing data (PowerSync db path).
   args.push_back("data:" + Context::getContext().powersync_db_path);
 
   // Taskwarrior version, same as returned by "task --version"
