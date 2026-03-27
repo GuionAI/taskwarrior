@@ -573,8 +573,8 @@ int Context::initialize(int argc, const char** argv) {
     //     - Default to ~/.task (ctor).
     //     - Allow $TASKDATA override.
     //     - Allow command line override rc.data.location:<dir>
-    //     - Read powersync.db_path and powersync.user_id from config.
-    //     - Allow POWERSYNC_DB_PATH / POWERSYNC_USER_ID env var overrides.
+    //     - Read powersync.db_path from config.
+    //     - Allow POWERSYNC_DB_PATH env var override.
     //     - Create the rc_file and data_dir, if necessary.
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -605,23 +605,16 @@ int Context::initialize(int argc, const char** argv) {
     // Read PowerSync config: taskrc first, env var override.
     {
       std::string ps_db = config.get("powersync.db_path");
-      std::string ps_uid = config.get("powersync.user_id");
 
       char* env_ps_db = getenv("POWERSYNC_DB_PATH");
-      char* env_ps_uid = getenv("POWERSYNC_USER_ID");
 
       if (env_ps_db) ps_db = std::string(env_ps_db);
-      if (env_ps_uid) ps_uid = std::string(env_ps_uid);
 
       if (ps_db.empty()) {
         throw std::string("powersync.db_path must be set in taskrc or POWERSYNC_DB_PATH env var");
       }
-      if (ps_uid.empty()) {
-        throw std::string("powersync.user_id must be set in taskrc or POWERSYNC_USER_ID env var");
-      }
 
       powersync_db_path = ps_db;
-      powersync_user_id = ps_uid;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -704,7 +697,7 @@ int Context::initialize(int argc, const char** argv) {
     ////////////////////////////////////////////////////////////////////////////
 
     Command* c = commands[cli2.getCommand()];
-    tdb2.open_replica(powersync_db_path, powersync_user_id);
+    tdb2.open_replica(powersync_db_path);
 
     ////////////////////////////////////////////////////////////////////////////
     //

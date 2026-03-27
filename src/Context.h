@@ -94,7 +94,6 @@ class Context {
   File rc_file{"~/.taskrc"};
   Path data_dir{"~/.task"};
   std::string powersync_db_path{};
-  std::string powersync_user_id{};
   Configuration config{};
   TDB2 tdb2{};
   Hooks hooks{};
