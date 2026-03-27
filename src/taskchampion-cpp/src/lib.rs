@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use taskchampion as tc;
 use tc::PowerSyncStorage;
-use tc::Uuid as TcUuid;
 
 // All Taskchampion FFI is contained in this module, due to issues with cxx and multiple modules
 // such as https://github.com/dtolnay/cxx/issues/1323.
@@ -496,9 +495,8 @@ fn new_replica_powersync(
 ) -> Result<Box<Replica>, CppError> {
     rt().block_on(async {
         let path = PathBuf::from(db_path);
-        let uid = TcUuid::parse_str(&user_id)
-            .map_err(|e| anyhow::anyhow!("invalid user_id UUID: {}", e))?;
-        let storage = PowerSyncStorage::new(&path, uid).await
+        let _ = user_id; // uid no longer required by PowerSyncStorage::new
+        let storage = PowerSyncStorage::new(&path).await
             .map_err(|e| anyhow::anyhow!("failed to open PowerSync DB at '{}': {}", path.display(), e))?;
         Ok(Box::new(tc::Replica::new(storage).into()))
     })
