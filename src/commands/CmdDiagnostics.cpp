@@ -133,11 +133,9 @@ int CmdDiagnostics::execute(std::string& output) {
   File location(ctx.powersync_db_path);
   out << "       Data: " << ctx.powersync_db_path << ' '
       << (location.exists() ? "(found)" : "(missing)") << ", mode " << std::setbase(8)
-      << location.mode() << '\n'
-      << "    User ID: " << ctx.powersync_user_id << '\n';
+      << location.mode() << '\n';
 
   out << " PS_DB_PATH: " << ctx.powersync_db_path << '\n';
-  out << " PS_USER_ID: " << ctx.powersync_user_id << '\n';
 
   out << "         GC: " << (Context::getContext().config.getBoolean("gc") ? "Enabled" : "Disabled")
       << '\n';
