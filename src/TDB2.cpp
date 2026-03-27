@@ -54,8 +54,8 @@ static const std::unordered_set<std::string> kTCSkippedKeys = {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-void TDB2::open_replica(const std::string& db_path, const std::string& user_id) {
-  _replica = tc::new_replica_powersync(db_path, user_id);
+void TDB2::open_replica(const std::string& db_path) {
+  _replica = tc::new_replica_powersync(db_path);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
