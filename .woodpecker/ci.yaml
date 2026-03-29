@@ -5,12 +5,13 @@ clone:
       recursive: true
 
 when:
+  - event: pull_request
   - event: push
     branch: develop
 
 steps:
   - name: rust-fmt
-    image: rust:latest
+    image: rust:1.88
     commands:
       - rustup component add rustfmt
       - cargo fmt --all -- --check
@@ -27,13 +28,9 @@ steps:
       - cargo test
 
   - name: cmake-build-test
-    image: debian:bookworm
+    image: rust:1.88
     commands:
       - apt-get update && apt-get install -y --no-install-recommends
           build-essential cmake git uuid-dev faketime locales
-          python3 curl ninja-build ca-certificates
-      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.88.0
-      - export PATH="/root/.cargo/bin:$$PATH"
-      - cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-      - cmake --build build --target test_runner --target task_executable -j$$(nproc)
-      - ctest --test-dir build -j$$(nproc) --output-on-failure
+          python3 ninja-build ca-certificates make
+      - make test
