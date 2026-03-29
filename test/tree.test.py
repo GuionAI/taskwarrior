@@ -787,14 +787,37 @@ class TestTreeProjectDisplay(TestCase):
         self.assertLess(child_idx, done_idx)
 
     def test_tree_project_in_full_tree_mode(self):
-        """Full-tree mode (multi-match) shows project for root nodes."""
-        self.t("add Alpha project:Work")
-        self.t("add Beta project:Work")
+        """Full-tree mode shows distinct projects for roots; renderTree() child also shows project."""
+        self.t("add Alpha project:ProjectA")
+        self.t("add Beta project:ProjectB")
         alpha_uuid = get_uuid(self.t, "Alpha")
         beta_uuid = get_uuid(self.t, "Beta")
+        # Add a child under Alpha; include it in the filter to exercise renderTree() in full-tree mode
+        self.t(f"add AlphaChild parent_id:{alpha_uuid} project:ProjectA")
+        child_uuid = get_uuid(self.t, "AlphaChild")
 
-        code, out, err = self.t(f"{alpha_uuid[:8]} {beta_uuid[:8]} tree")
-        self.assertIn("(Work)", out)
+        code, out, err = self.t(f"{alpha_uuid[:8]} {beta_uuid[:8]} {child_uuid[:8]} tree")
+        # Both root projects appear
+        self.assertIn("(ProjectA)", out)
+        self.assertIn("(ProjectB)", out)
+        # Child rendered via renderTree() also shows its project
+        child_line = [l for l in out.split("\n") if "AlphaChild" in l][0]
+        self.assertIn("(ProjectA)", child_line)
+
+    def test_tree_project_cross_contamination(self):
+        """Parent with project and child without (or vice versa) each show only their own project."""
+        self.t("add Root project:Infra")
+        root_uuid = get_uuid(self.t, "Root")
+        self.t(f"add Child parent_id:{root_uuid}")  # no project
+
+        code, out, err = self.t(f"{root_uuid[:8]} tree")
+        lines = [l for l in out.split("\n") if l.strip()]
+        root_line = [l for l in lines if "Root" in l][0]
+        child_line = [l for l in lines if "Child" in l][0]
+        # Root shows project, child does not
+        self.assertIn("(Infra)", root_line)
+        self.assertNotIn("(Infra)", child_line)
+        self.assertNotIn("()", child_line)
 
 
 if __name__ == "__main__":
