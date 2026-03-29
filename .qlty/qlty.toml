@@ -1,0 +1,39 @@
+config_version = "0"
+
+exclude_patterns = [
+  "build/**",
+  "target/**",
+  "src/libshared/**",
+  "src/taskchampion-cpp/corrosion/**",
+]
+
+test_patterns = [
+  "test/**",
+]
+
+[smells]
+mode = "comment"
+
+[[source]]
+name = "default"
+default = true
+
+# Rust linting via clippy
+[[plugin]]
+name = "clippy"
+mode = "block"
+
+# Rust formatting via rustfmt
+[[plugin]]
+name = "rustfmt"
+mode = "block"
+
+# Secret scanning — catches leaked API keys, credentials
+[[plugin]]
+name = "trufflehog"
+mode = "block"
+
+# Dependency vulnerability scanning (scans Cargo.lock)
+[[plugin]]
+name = "osv-scanner"
+mode = "block"
