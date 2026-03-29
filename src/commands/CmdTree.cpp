@@ -59,6 +59,21 @@ static std::string statusIndicator(const Task& task) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Return the project prefix for a task ("(project) " or "").
+static std::string projectIndicator(const Task& task) {
+  std::string project = task.get("project");
+  if (project.empty()) return "";
+  return "(" + project + ") ";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Format a single task line: "[uuid8] (project) description [status]\n".
+static std::string taskLine(const std::string& uuid, const Task& task) {
+  return "[" + uuid.substr(0, 8) + "] " + projectIndicator(task) + task.get("description") +
+         statusIndicator(task) + "\n";
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Render one node and recursively render its children.
 void CmdTree::renderTree(std::string& output, const rust::Box<tc::TreeMapWrapper>& tree,
                          const std::map<std::string, Task>& taskMap, const std::string& uuid,
@@ -73,8 +88,7 @@ void CmdTree::renderTree(std::string& output, const rust::Box<tc::TreeMapWrapper
 
   const Task& task = it->second;
   std::string connector = isLast ? "└─ " : "├─ ";
-  output += prefix + connector + "[" + uuid.substr(0, 8) + "] " + task.get("description") +
-            statusIndicator(task) + "\n";
+  output += prefix + connector + taskLine(uuid, task);
 
   // Recurse into children if depth limit not reached.
   if (maxDepth == 0 || depth < maxDepth) {
@@ -130,8 +144,7 @@ int CmdTree::execute(std::string& output) {
   // Subtree mode: if filter matches exactly one task, show it + all descendants.
   if (filtered.size() == 1) {
     const std::string& rootUuid = filtered[0].get("uuid");
-    output += "[" + rootUuid.substr(0, 8) + "] " + filtered[0].get("description") +
-              statusIndicator(filtered[0]) + "\n";
+    output += taskLine(rootUuid, filtered[0]);
 
     tc::Uuid tcRoot = tc::uuid_from_string(rootUuid);
     auto children = tree->children(tcRoot);
@@ -166,8 +179,7 @@ int CmdTree::execute(std::string& output) {
     auto it = taskMap.find(rootUuid);
     if (it == taskMap.end()) continue;
 
-    output += "[" + rootUuid.substr(0, 8) + "] " + it->second.get("description") +
-              statusIndicator(it->second) + "\n";
+    output += taskLine(rootUuid, it->second);
     renderedUuids.insert(rootUuid);
 
     // Render children recursively (only matched ones).

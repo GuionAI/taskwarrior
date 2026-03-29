@@ -54,6 +54,7 @@ class Task(object):
         # rc overrides accumulated by config() calls, applied as rc.<key>:<value> args
         self._rc_overrides = {
             "news.version": "2.6.0",
+            "hooks": "0",  # disable system hooks by default; activate_hooks() re-enables
         }
 
         self._init_test_db()
