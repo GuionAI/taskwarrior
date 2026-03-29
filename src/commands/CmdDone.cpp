@@ -105,7 +105,8 @@ int CmdDone::execute(std::string&) {
 
         updateRecurrenceMask(task);
 
-        // Auto-complete all pending/waiting descendants (no prompt).
+        // Auto-complete all pending/waiting descendants (no prompt, no hooks).
+        auto oldHooks = Context::getContext().hooks.enable(false);
         auto desc = Context::getContext().tdb2.descendants(task.get("uuid"));
         for (auto& d : desc) {
           if (d.getStatus() == Task::pending || d.getStatus() == Task::waiting) {
@@ -115,6 +116,7 @@ int CmdDone::execute(std::string&) {
             ++count;
           }
         }
+        Context::getContext().hooks.enable(oldHooks);
 
         // Save unmodified task for potential nagging later
         modified.push_back(before);
