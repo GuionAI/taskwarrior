@@ -714,8 +714,6 @@ class TestTreeProjectDisplay(TestCase):
 
     def setUp(self):
         self.t = Task()
-        # Disable hooks so project names aren't validated against the ttal registry.
-        self.t.config("hooks", "0")
 
     def test_tree_shows_project_for_task_with_project(self):
         """Tasks with a project show (ProjectName) in tree output."""
