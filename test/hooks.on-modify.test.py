@@ -181,25 +181,35 @@ class TestHooksOnModify(TestCase):
         hookname = "on-modify-accept"
         self.t.hooks.add_default(hookname, log=True)
 
-        # Create parent task and capture its UUID.
-        code, out, err = self.t("rc.verbose=new-uuid add Parent Task")
-        parent_uuid = out.strip().split()[-1]
+        # Create a parent → child → grandchild tree to exercise multi-level recursion.
+        self.t("add Parent Task")
+        all_tasks = self.t.export()
+        parent_uuid = next(t["uuid"] for t in all_tasks if t["description"] == "Parent Task")
 
-        # Create child task linked to the parent.
         self.t(f"add Child Task parent_id:{parent_uuid}")
+        all_tasks = self.t.export()
+        child_uuid = next(t["uuid"] for t in all_tasks if t["description"] == "Child Task")
 
-        # Complete the parent — should recursively complete the child.
-        code, out, err = self.t(f"{parent_uuid} done")
+        self.t(f"add Grandchild Task parent_id:{child_uuid}")
 
-        # Hook must have fired exactly once (for the parent only, not the child).
+        # Complete the parent — should recursively complete child and grandchild.
+        self.t(f"{parent_uuid} done")
+
+        # Hook must have fired exactly once (for the parent only, not descendants).
         hook = self.t.hooks[hookname]
         hook.assertTriggeredCount(1)
 
-        # Both parent and child must be completed in the DB.
+        # The single hook invocation must be for the parent task, not a descendant.
+        logs = hook.get_logs()
+        hooked_uuid = logs["input"]["json"][1]["uuid"]  # second JSON = new task
+        self.assertEqual(hooked_uuid, parent_uuid)
+
+        # All three tasks must be completed in the DB.
         tasks = self.t.export("+COMPLETED")
         descriptions = [t["description"] for t in tasks]
         self.assertIn("Parent Task", descriptions)
         self.assertIn("Child Task", descriptions)
+        self.assertIn("Grandchild Task", descriptions)
 
     def test_onmodify_escaped_backslash(self):
         """on-modify-accept - a well-behaved, successful, on-modify hook."""

@@ -106,7 +106,16 @@ int CmdDone::execute(std::string&) {
         updateRecurrenceMask(task);
 
         // Auto-complete all pending/waiting descendants (no prompt, no hooks).
-        auto oldHooks = Context::getContext().hooks.enable(false);
+        // RAII guard ensures hooks are re-enabled even if tdb2.modify() throws.
+        struct HooksGuard {
+          Hooks& hooks;
+          bool saved;
+          explicit HooksGuard(Hooks& h, bool val) : hooks(h), saved(h.enable(val)) {}
+          ~HooksGuard() { hooks.enable(saved); }
+          HooksGuard(const HooksGuard&) = delete;
+          HooksGuard& operator=(const HooksGuard&) = delete;
+        };
+        HooksGuard hooksGuard(Context::getContext().hooks, false);
         auto desc = Context::getContext().tdb2.descendants(task.get("uuid"));
         for (auto& d : desc) {
           if (d.getStatus() == Task::pending || d.getStatus() == Task::waiting) {
@@ -116,7 +125,6 @@ int CmdDone::execute(std::string&) {
             ++count;
           }
         }
-        Context::getContext().hooks.enable(oldHooks);
 
         // Save unmodified task for potential nagging later
         modified.push_back(before);
