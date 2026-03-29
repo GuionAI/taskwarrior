@@ -709,6 +709,94 @@ class TestTreeDefaultFilter(TestCase):
         self.assertNotIn(gamma_uuid[:8], out)
 
 
+class TestTreeProjectDisplay(TestCase):
+    """Tests for project field display in tree output."""
+
+    def setUp(self):
+        self.t = Task()
+        # Disable hooks so project names aren't validated against the ttal registry.
+        self.t.config("hooks", "0")
+
+    def test_tree_shows_project_for_task_with_project(self):
+        """Tasks with a project show (ProjectName) in tree output."""
+        self.t("add Root project:Work")
+        root_uuid = get_uuid(self.t, "Root")
+        self.t(f"add Child parent_id:{root_uuid} project:Work")
+
+        code, out, err = self.t(f"{root_uuid[:8]} tree")
+        self.assertIn("(Work)", out)
+
+    def test_tree_no_project_no_parens(self):
+        """Tasks without a project render as [uuid] description with no parens."""
+        self.t("add Bare Task")
+        root_uuid = get_uuid(self.t, "Bare Task")
+        self.t(f"add Child parent_id:{root_uuid}")
+
+        code, out, err = self.t(f"{root_uuid[:8]} tree")
+        self.assertNotIn("()", out)
+        # Verify exact format: [uuid8] description (no parens at all)
+        self.assertIn(f"[{root_uuid[:8]}] Bare Task", out)
+
+    def test_tree_mixed_projects(self):
+        """Children with different projects show their respective projects."""
+        self.t("add Root project:Alpha")
+        root_uuid = get_uuid(self.t, "Root")
+        self.t(f"add Task1 parent_id:{root_uuid} project:Alpha")
+        self.t(f"add Task2 parent_id:{root_uuid} project:Beta")
+
+        code, out, err = self.t(f"{root_uuid[:8]} tree")
+        self.assertIn("(Alpha)", out)
+        self.assertIn("(Beta)", out)
+
+    def test_tree_project_with_hierarchy(self):
+        """Hierarchical project names (e.g. Work.Backend) display correctly."""
+        self.t("add Root project:Work.Backend")
+        root_uuid = get_uuid(self.t, "Root")
+
+        code, out, err = self.t(f"{root_uuid[:8]} tree")
+        self.assertIn("(Work.Backend)", out)
+
+    def test_tree_project_before_description(self):
+        """Project appears between uuid and description: [uuid] (Project) desc."""
+        self.t("add MyTask project:Ops")
+        task_uuid = get_uuid(self.t, "MyTask")
+
+        code, out, err = self.t(f"{task_uuid[:8]} tree")
+        # Format: [uuid8] (Ops) MyTask
+        self.assertIn("(Ops) MyTask", out)
+
+    def test_tree_project_with_status_indicator(self):
+        """Project and status indicators coexist: [uuid] (Project) desc [done]."""
+        self.t("add Root project:Ops")
+        root_uuid = get_uuid(self.t, "Root")
+        self.t(f"add Child parent_id:{root_uuid} project:Ops")
+        child_uuid = get_uuid(self.t, "Child")
+
+        self.t(f"{child_uuid[:8]} rc.confirmation=no done")
+
+        code, out, err = self.t(f"{root_uuid[:8]} tree")
+        # Both indicators present on the completed child line
+        child_line = [l for l in out.split("\n") if "Child" in l][0]
+        self.assertIn("(Ops)", child_line)
+        self.assertIn("[done]", child_line)
+        # Verify order: project before description, status after
+        ops_idx = child_line.index("(Ops)")
+        child_idx = child_line.index("Child")
+        done_idx = child_line.index("[done]")
+        self.assertLess(ops_idx, child_idx)
+        self.assertLess(child_idx, done_idx)
+
+    def test_tree_project_in_full_tree_mode(self):
+        """Full-tree mode (multi-match) shows project for root nodes."""
+        self.t("add Alpha project:Work")
+        self.t("add Beta project:Work")
+        alpha_uuid = get_uuid(self.t, "Alpha")
+        beta_uuid = get_uuid(self.t, "Beta")
+
+        code, out, err = self.t(f"{alpha_uuid[:8]} {beta_uuid[:8]} tree")
+        self.assertIn("(Work)", out)
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 
