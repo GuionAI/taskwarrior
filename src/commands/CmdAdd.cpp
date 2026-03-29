@@ -98,7 +98,8 @@ int CmdAdd::execute(std::string& output) {
   // it's enduring and never changes, and it's unlikely the caller
   // asked for this if they just wanted a human-friendly number.
 
-  std::string shortUuid = task.get("uuid").substr(0, 8);
+  std::string uuid = task.get("uuid");
+  std::string shortUuid = uuid.substr(0, 8);
   std::string parentSuffix;
   if (task.has("parent_id") && task.get("parent_id") != "") {
     Task parent_task;
@@ -109,7 +110,7 @@ int CmdAdd::execute(std::string& output) {
   if (Context::getContext().verbose("new-uuid") ||
       (Context::getContext().verbose("new-id") &&
        (status == Task::completed || status == Task::deleted)))
-    output += format("Created task {1}{2}.\n", shortUuid, parentSuffix);
+    output += format("Created task {1}{2}.\n", uuid, parentSuffix);
 
   else if (Context::getContext().verbose("new-id") &&
            (status == Task::pending || status == Task::waiting))
