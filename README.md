@@ -1,6 +1,7 @@
 <div align="center">
 <img src="https://avatars.githubusercontent.com/u/36100920?s=200&u=24da05914c20c4ccfe8485310f7b83049407fa9a&v=4"></br>
 
+[![CI](https://ci.guion.io/api/badges/GuionAI/taskwarrior/status.svg)](https://ci.guion.io/GuionAI/taskwarrior)
 [![GitHub Actions build status](https://github.com/GothenburgBitFactory/taskwarrior/workflows/tests/badge.svg?branch=develop)](https://github.com/GothenburgBitFactory/taskwarrior/actions)
 [![Coverage Status](https://coveralls.io/repos/github/GothenburgBitFactory/taskwarrior/badge.svg?branch=develop)](https://coveralls.io/github/GothenburgBitFactory/taskwarrior?branch=develop)
 [![Release](https://img.shields.io/github/v/release/GothenburgBitFactory/taskwarrior)](https://github.com/GothenburgBitFactory/taskwarrior/releases/latest)

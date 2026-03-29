@@ -1,0 +1,39 @@
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      recursive: true
+
+when:
+  - event: push
+    branch: develop
+
+steps:
+  - name: rust-fmt
+    image: rust:latest
+    commands:
+      - rustup component add rustfmt
+      - cargo fmt --all -- --check
+
+  - name: clippy
+    image: rust:1.88
+    commands:
+      - rustup component add clippy
+      - cargo clippy --all-features -- -D warnings
+
+  - name: cargo-test
+    image: rust:1.88
+    commands:
+      - cargo test
+
+  - name: cmake-build-test
+    image: debian:bookworm
+    commands:
+      - apt-get update && apt-get install -y --no-install-recommends
+          build-essential cmake git uuid-dev faketime locales
+          python3 curl ninja-build ca-certificates
+      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.88.0
+      - export PATH="/root/.cargo/bin:$$PATH"
+      - cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+      - cmake --build build --target test_runner --target task_executable -j$$(nproc)
+      - ctest --test-dir build -j$$(nproc) --output-on-failure
