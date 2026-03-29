@@ -176,6 +176,41 @@ class TestHooksOnModify(TestCase):
         hook.assertTriggeredCount(1)
         hook.assertExitcode(0)
 
+    def test_recursive_done_suppresses_child_hooks(self):
+        """on-modify hook fires once for parent only when recursively completing descendants."""
+        hookname = "on-modify-accept"
+        self.t.hooks.add_default(hookname, log=True)
+
+        # Create a parent → child → grandchild tree to exercise multi-level recursion.
+        self.t("add Parent Task")
+        all_tasks = self.t.export()
+        parent_uuid = next(t["uuid"] for t in all_tasks if t["description"] == "Parent Task")
+
+        self.t(f"add Child Task parent_id:{parent_uuid}")
+        all_tasks = self.t.export()
+        child_uuid = next(t["uuid"] for t in all_tasks if t["description"] == "Child Task")
+
+        self.t(f"add Grandchild Task parent_id:{child_uuid}")
+
+        # Complete the parent — should recursively complete child and grandchild.
+        self.t(f"{parent_uuid} done")
+
+        # Hook must have fired exactly once (for the parent only, not descendants).
+        hook = self.t.hooks[hookname]
+        hook.assertTriggeredCount(1)
+
+        # The single hook invocation must be for the parent task, not a descendant.
+        logs = hook.get_logs()
+        hooked_uuid = logs["input"]["json"][1]["uuid"]  # second JSON = new task
+        self.assertEqual(hooked_uuid, parent_uuid)
+
+        # All three tasks must be completed in the DB.
+        tasks = self.t.export("+COMPLETED")
+        descriptions = [t["description"] for t in tasks]
+        self.assertIn("Parent Task", descriptions)
+        self.assertIn("Child Task", descriptions)
+        self.assertIn("Grandchild Task", descriptions)
+
     def test_onmodify_escaped_backslash(self):
         """on-modify-accept - a well-behaved, successful, on-modify hook."""
         # Create a task with a slash-escaped tab in it, avoiding TaskWarrior to ensure
