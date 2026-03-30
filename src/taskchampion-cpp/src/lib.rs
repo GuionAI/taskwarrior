@@ -102,9 +102,7 @@ mod ffi {
         type Replica;
 
         /// Create a new replica backed by PowerSync storage.
-        fn new_replica_powersync(
-            db_path: String,
-        ) -> Result<Box<Replica>>;
+        fn new_replica_powersync(db_path: String) -> Result<Box<Replica>>;
 
         /// Create a new in-memory test replica (PowerSync with ephemeral storage).
         fn new_replica_for_test() -> Result<Box<Replica>>;
@@ -488,20 +486,20 @@ impl From<tc::Replica<PowerSyncStorage>> for Replica {
     }
 }
 
-fn new_replica_powersync(
-    db_path: String,
-) -> Result<Box<Replica>, CppError> {
+fn new_replica_powersync(db_path: String) -> Result<Box<Replica>, CppError> {
     rt().block_on(async {
         let path = PathBuf::from(db_path);
-        let storage = PowerSyncStorage::new(&path).await
-            .map_err(|e| anyhow::anyhow!("failed to open PowerSync DB at '{}': {}", path.display(), e))?;
+        let storage = PowerSyncStorage::new(&path).await.map_err(|e| {
+            anyhow::anyhow!("failed to open PowerSync DB at '{}': {}", path.display(), e)
+        })?;
         Ok(Box::new(tc::Replica::new(storage).into()))
     })
 }
 
 fn new_replica_for_test() -> Result<Box<Replica>, CppError> {
     rt().block_on(async {
-        let storage = PowerSyncStorage::new_for_test().await
+        let storage = PowerSyncStorage::new_for_test()
+            .await
             .map_err(|e| anyhow::anyhow!("failed to create in-memory test replica: {}", e))?;
         Ok(Box::new(tc::Replica::new(storage).into()))
     })
@@ -1037,5 +1035,4 @@ mod test {
             }]
         );
     }
-
 }
