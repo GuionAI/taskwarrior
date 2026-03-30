@@ -15,13 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install clang (required by bindgen/powersync_sqlite_nostd)
+        run: sudo apt-get update -y && sudo apt-get install -y --no-install-recommends clang libclang-dev
+
       - uses: dtolnay/rust-toolchain@master
         id: toolchain
         with:
-          # If this version is old enough to cause errors, or older than the
-          # TaskChampion MSRV, bump it to the MSRV of the currently-required
-          # TaskChampion package; if necessary, bump that version as well.
-          toolchain: "1.88.0" # MSRV
+          # Must be >= 1.91.1 (taskchampion@3.0.2-pre MSRV).
+          # Use stable to always pick up the latest stable release.
+          toolchain: "stable"
 
       - name: Cache cargo registry
         uses: actions/cache@v5

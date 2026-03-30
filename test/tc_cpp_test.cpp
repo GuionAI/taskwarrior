@@ -121,7 +121,7 @@ int TEST_NAME(int, char**) {
 
   // Check error message formatting for a failed replica open.
   try {
-    tc::new_replica_powersync("/does/not/exist/test.db", "00000000-0000-0000-0000-000000000000");
+    tc::new_replica_powersync("/does/not/exist/test.db");
   } catch (rust::Error& err) {
     t.ok(std::string(err.what()).find("failed to open PowerSync DB") != std::string::npos,
          "error message has context about failed open");
