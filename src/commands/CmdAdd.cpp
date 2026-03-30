@@ -107,13 +107,17 @@ int CmdAdd::execute(std::string& output) {
       parentSuffix = format(" (child of '{1}')", parent_task.get("description"));
   }
 
-  if (Context::getContext().verbose("new-uuid") ||
-      (Context::getContext().verbose("new-id") &&
-       (status == Task::completed || status == Task::deleted)))
+  bool verboseUuid = Context::getContext().verbose("new-uuid");
+  bool verboseId = Context::getContext().verbose("new-id");
+  std::string id = verboseUuid ? uuid : shortUuid;
+
+  if (status == Task::recurring && (verboseUuid || verboseId))
+    output += format("Created task {1} (recurrence template){2}.\n", id, parentSuffix);
+
+  else if (verboseUuid || (verboseId && (status == Task::completed || status == Task::deleted)))
     output += format("Created task {1}{2}.\n", uuid, parentSuffix);
 
-  else if (Context::getContext().verbose("new-id") &&
-           (status == Task::pending || status == Task::waiting))
+  else if (verboseId && (status == Task::pending || status == Task::waiting))
     output += format("Created task {1}{2}.\n", shortUuid, parentSuffix);
 
   if (Context::getContext().verbose("project"))

@@ -243,6 +243,31 @@ class TestBug1719(TestCase):
         self.assertEqual("two 23rd\n", out)
 
 
+class TestRecurringVerbose(TestCase):
+    def setUp(self):
+        self.t = Task()
+
+    def test_add_recurring_shows_recurrence_template_new_id(self):
+        """Recurring task add with verbose:new-id shows short UUID + '(recurrence template)'"""
+        code, out, err = self.t("rc.verbose:new-id add recur:daily due:tomorrow Test recurring")
+        self.assertRegex(out, r"Created task [0-9a-f]{8} \(recurrence template\)\.")
+
+    def test_add_recurring_shows_recurrence_template_new_uuid(self):
+        """Recurring task add with verbose:new-uuid shows full UUID + '(recurrence template)'"""
+        code, out, err = self.t(
+            "rc.verbose:new-uuid add recur:daily due:tomorrow Test recurring uuid"
+        )
+        self.assertRegex(
+            out, r"Created task [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} \(recurrence template\)\."
+        )
+
+    def test_add_pending_does_not_show_recurrence_template(self):
+        """Pending task add does not show '(recurrence template)' but does show 'Created task'"""
+        code, out, err = self.t("rc.verbose:new-id add Test pending task")
+        self.assertNotIn("(recurrence template)", out)
+        self.assertRegex(out, r"Created task [0-9a-f]{8}\.")
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 
