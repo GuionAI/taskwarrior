@@ -50,6 +50,7 @@ set (commands_SRCS Command.cpp        Command.h
                    CmdStats.cpp       CmdStats.h
                    CmdStop.cpp        CmdStop.h
                    CmdSummary.cpp     CmdSummary.h
+                   CmdTagManage.cpp   CmdTagManage.h
                    CmdTags.cpp        CmdTags.h
                    CmdTimesheet.cpp   CmdTimesheet.h
                    CmdTree.cpp        CmdTree.h

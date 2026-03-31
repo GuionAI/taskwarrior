@@ -1,7 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright 2006 - 2025, Tomas Babej, Paul Beckingham, Federico Hernandez,
-//                        Tobias Predel.
+// Copyright 2006 - 2025, Tomas Babej, Paul Beckingham, Federico Hernandez.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,31 +24,18 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef INCLUDED_FEEDBACK
-#define INCLUDED_FEEDBACK
+#ifndef INCLUDED_CMDTAGMANAGE
+#define INCLUDED_CMDTAGMANAGE
 
-#include <cmake.h>
-// cmake.h include header must come first
-
-#include <Task.h>
+#include <Command.h>
 
 #include <string>
-#include <vector>
 
-std::string renderAttribute(const std::string& name, const std::string& value,
-                            const std::string& format = "");
-void feedback_affected(const std::string& effect);
-void feedback_affected(const std::string& effect, int quantity);
-void feedback_affected(const std::string& effect, const Task& task);
-void feedback_reserved_tags(const std::string& tag);
-void feedback_validate_tag(const std::string& tag);
-void feedback_special_tags(const Task& task, const std::string& tag);
-void feedback_unblocked(const Task& task);
-void feedback_backlog();
-std::string onProjectChange(Task& task, bool scope = true);
-std::string onProjectChange(Task& task1, Task& task2);
-std::string onExpiration(Task& task);
+class CmdTagManage : public Command {
+ public:
+  CmdTagManage();
+  int execute(std::string&);
+};
 
 #endif
-
 ////////////////////////////////////////////////////////////////////////////////

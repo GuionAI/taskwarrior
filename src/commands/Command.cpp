@@ -81,6 +81,7 @@
 #include <CmdSummary.h>
 #include <CmdTree.h>
 #include <CmdPlan.h>
+#include <CmdTagManage.h>
 #include <CmdTags.h>
 #include <CmdTimesheet.h>
 #include <CmdUDAs.h>
@@ -219,6 +220,8 @@ void Command::factory(std::map<std::string, Command*>& all) {
   c = new CmdStop();
   all[c->keyword()] = c;
   c = new CmdSummary();
+  all[c->keyword()] = c;
+  c = new CmdTagManage();
   all[c->keyword()] = c;
   c = new CmdTags();
   all[c->keyword()] = c;

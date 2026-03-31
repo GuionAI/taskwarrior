@@ -102,8 +102,8 @@ void feedback_reserved_tags(const std::string& tag) {
   if (tag == "ACTIVE" || tag == "ANNOTATED" || tag == "BLOCKED" || tag == "BLOCKING" ||
       tag == "CHILD" ||  // Deprecated 2.6.0
       tag == "COMPLETED" || tag == "DELETED" || tag == "DUE" || tag == "DUETODAY" ||
-      tag == "INSTANCE" || tag == "MONTH" || tag == "ORPHAN" ||
-      tag == "OVERDUE" || tag == "PARENT" ||  // Deprecated 2.6.0
+      tag == "INSTANCE" || tag == "MONTH" || tag == "ORPHAN" || tag == "OVERDUE" ||
+      tag == "PARENT" ||  // Deprecated 2.6.0
       tag == "PENDING" || tag == "PRIORITY" || tag == "PROJECT" || tag == "QUARTER" ||
       tag == "READY" || tag == "SCHEDULED" || tag == "TAGGED" || tag == "TEMPLATE" ||
       tag == "TODAY" || tag == "TOMORROW" || tag == "UDA" || tag == "UNBLOCKED" || tag == "UNTIL" ||
@@ -111,6 +111,13 @@ void feedback_reserved_tags(const std::string& tag) {
     throw format("Virtual tags (including '{1}') are reserved and may not be added or removed.",
                  tag);
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Validates that a tag is registered in the tc tag registry.
+// Throws a user-facing error message if the tag is not registered.
+void feedback_validate_tag(const std::string& tag) {
+  Context::getContext().tdb2.replica()->validate_tag(tag);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

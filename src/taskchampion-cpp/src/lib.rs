@@ -148,6 +148,38 @@ mod ffi {
 
         /// Build a TreeMap from all tasks in this replica.
         fn tree_map(&mut self) -> Result<Box<TreeMapWrapper>>;
+
+        // --- Tag registry operations
+
+        /// Return registered tag names from tc_config (tags that have been explicitly
+        /// added via `task tag add` or seeded via `task tag migrate`).
+        fn get_all_task_tags(&mut self) -> Result<Vec<String>>;
+
+        /// Seed the tag registry from existing task data (startup one-time migration).
+        ///
+        /// If tc_config already has at least one registered tag, this is a no-op — the
+        /// registry is considered already seeded. Otherwise scans all task data for tag_*
+        /// keys and adds each unique name to tc_config.tags. Intended to be called on
+        /// startup so that existing tags survive an upgrade without manual re-registration.
+        fn seed_tags_from_tasks(&mut self) -> Result<()>;
+
+        /// Migrate tags from existing task data into the registry (explicit CLI command).
+        ///
+        /// Unlike `seed_tags_from_tasks`, this always scans task data and adds any tag not
+        /// yet in the registry. Does not remove tags present in the registry but absent from
+        /// task data. Safe to run repeatedly.
+        fn migrate_tags_from_tasks(&mut self) -> Result<()>;
+
+        /// Register a tag by name in tc_config.
+        ///
+        /// If the tag is already registered, this is a no-op.
+        fn register_tag(&mut self, name: &CxxString) -> Result<()>;
+
+        /// Validate that a tag is registered in tc_config.
+        ///
+        /// Returns an error if the tag is not registered, with a message directing the user
+        /// to run `task tag add <name>` to register it.
+        fn validate_tag(&mut self, name: &CxxString) -> Result<()>;
     }
 
     // --- OptionTaskData
@@ -623,6 +655,67 @@ impl Replica {
             Ok(Box::new(TreeMapWrapper((*arc).clone())))
         })
     }
+
+    fn get_all_task_tags(&mut self) -> Result<Vec<String>, CppError> {
+        rt().block_on(async {
+            let config = self.0.get_tc_config_parsed().await?;
+            Ok(config.tag_list())
+        })
+    }
+
+    fn seed_tags_from_tasks(&mut self) -> Result<(), CppError> {
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            // Only auto-seed when the registry is empty (one-time migration guard).
+            if !config.tag_list().is_empty() {
+                return Ok(());
+            }
+            let task_tags = self.0.get_all_tags().await?;
+            for tag in task_tags {
+                config.add_tag(&tag);
+            }
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
+        })
+    }
+
+    fn migrate_tags_from_tasks(&mut self) -> Result<(), CppError> {
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            let task_tags = self.0.get_all_tags().await?;
+            for tag in task_tags {
+                config.add_tag(&tag);
+            }
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
+        })
+    }
+
+    fn register_tag(&mut self, name: &CxxString) -> Result<(), CppError> {
+        let tag = name.to_string_lossy().into_owned();
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            config.add_tag(&tag);
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
+        })
+    }
+
+    fn validate_tag(&mut self, name: &CxxString) -> Result<(), CppError> {
+        let tag = name.to_string_lossy().into_owned();
+        rt().block_on(async {
+            let config = self.0.get_tc_config_parsed().await?;
+            if !config.has_tag(&tag) {
+                Err(CppError(tc::Error::Other(anyhow::anyhow!(
+                    "Tag '{}' is not registered. Use 'task tag add {}' to register it.",
+                    tag,
+                    tag
+                ))))
+            } else {
+                Ok(())
+            }
+        })
+    }
 }
 
 // --- OptionTaskData
@@ -1073,6 +1166,88 @@ mod test {
                 prop: "prop".into(),
                 value: "value".into(),
             }]
+        );
+    }
+
+    // --- Tag registry
+
+    #[test]
+    fn validate_tag_blocks_unregistered() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "work");
+        // Before any registration, validate_tag must return an error.
+        assert!(
+            rep.validate_tag(&tag).is_err(),
+            "validate_tag should fail for an unregistered tag"
+        );
+    }
+
+    #[test]
+    fn validate_tag_allows_registered() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "work");
+        rep.register_tag(&tag).unwrap();
+        assert!(
+            rep.validate_tag(&tag).is_ok(),
+            "validate_tag should succeed after register_tag"
+        );
+    }
+
+    #[test]
+    fn seed_tags_noop_when_registry_nonempty() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(existing = "work");
+        // Pre-register one tag.
+        rep.register_tag(&existing).unwrap();
+
+        // Create a task with a different tag that is NOT in the registry.
+        let mut ops = new_operations();
+        let uuid = uuid_v4();
+        let mut t = create_task(uuid, &mut ops);
+        cxx::let_cxx_string!(tag_key = "tag_urgent");
+        cxx::let_cxx_string!(tag_val = "x");
+        t.update(&tag_key, &tag_val, &mut ops);
+        rep.commit_operations(ops).unwrap();
+
+        // seed_tags_from_tasks should be a no-op because the registry is non-empty.
+        rep.seed_tags_from_tasks().unwrap();
+
+        // "urgent" should NOT have been seeded (registry was already populated).
+        cxx::let_cxx_string!(urgent = "urgent");
+        assert!(
+            rep.validate_tag(&urgent).is_err(),
+            "seed_tags_from_tasks should not seed when registry is non-empty"
+        );
+        // "work" should still be registered.
+        assert!(
+            rep.validate_tag(&existing).is_ok(),
+            "previously registered tag should still be valid"
+        );
+    }
+
+    #[test]
+    fn migrate_tags_always_seeds() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(existing = "work");
+        // Pre-register one tag so registry is non-empty.
+        rep.register_tag(&existing).unwrap();
+
+        // Create a task with an unregistered tag.
+        let mut ops = new_operations();
+        let uuid = uuid_v4();
+        let mut t = create_task(uuid, &mut ops);
+        cxx::let_cxx_string!(tag_key = "tag_urgent");
+        cxx::let_cxx_string!(tag_val = "x");
+        t.update(&tag_key, &tag_val, &mut ops);
+        rep.commit_operations(ops).unwrap();
+
+        // migrate_tags_from_tasks should register "urgent" even though registry was non-empty.
+        rep.migrate_tags_from_tasks().unwrap();
+
+        cxx::let_cxx_string!(urgent = "urgent");
+        assert!(
+            rep.validate_tag(&urgent).is_ok(),
+            "migrate_tags_from_tasks should register tags from task data unconditionally"
         );
     }
 }
