@@ -53,77 +53,31 @@ CmdPlan::CmdPlan() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Parse markdown from a string into a list of MarkdownNode items.
-// Lines starting with '#' are headings; depth = number of '#' chars, clamped
-// so that '#' and '##' both map to depth=1 (direct child).
-// Body lines under a heading accumulate into the annotation field.
-std::vector<MarkdownNode> CmdPlan::parseMarkdown(const std::string& input) {
-  std::vector<MarkdownNode> nodes;
-  std::istringstream stream(input);
-  std::string line;
-  MarkdownNode* current = nullptr;
-
-  while (std::getline(stream, line)) {
-    if (line.empty()) continue;
-
-    if (!line.empty() && line[0] == '#') {
-      // Count '#' chars for raw depth.
-      size_t level = 0;
-      while (level < line.size() && line[level] == '#') ++level;
-
-      // depth 1 = direct child (both ## and # treated as 1)
-      int depth = (level <= 2) ? 1 : static_cast<int>(level) - 1;
-
-      std::string title = line.substr(level);
-      // Trim leading space after '#'s
-      size_t start = title.find_first_not_of(' ');
-      if (start != std::string::npos) title = title.substr(start);
-
-      nodes.push_back({depth, title, ""});
-      current = &nodes.back();
-    } else if (current != nullptr) {
-      // Body text → append to annotation
-      if (!current->annotation.empty()) current->annotation += "\n";
-      current->annotation += line;
-    }
-  }
-
-  return nodes;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Recursively create subtasks for the given parent, using sequential positions.
-// nodes is the flat list from parseMarkdown; we process them depth-first.
+// nodes is a flat depth-squashed list; minDepth nodes become direct children.
 void CmdPlan::createSubtasks(const std::string& parentUuid,
-                             const std::vector<MarkdownNode>& nodes, std::string& output) {
-  // Collect direct children (depth == 1 relative to current parent level).
-  // We process the flat list respecting nesting by tracking a "stack" approach.
-  // We'll use a recursive descent: find all depth-1 nodes at the top level,
-  // then for each, find their depth-2 children (shifted by 1), etc.
-  // Since parseMarkdown returns depths relative to markdown nesting, we need
-  // to find the minimum depth among remaining nodes.
-
-  // Find the minimum depth to treat as "direct children".
+                             const std::vector<FlatNode>& nodes, std::string& output) {
   if (nodes.empty()) return;
 
+  // Find the minimum depth to treat as "direct children".
   int minDepth = nodes[0].depth;
-  for (auto& n : nodes) {
+  for (const auto& n : nodes) {
     if (n.depth < minDepth) minDepth = n.depth;
   }
 
   // Collect top-level groups: each group = one top-level node + its children.
   struct Group {
-    MarkdownNode node;
-    std::vector<MarkdownNode> children;
+    FlatNode node;
+    std::vector<FlatNode> children;
   };
   std::vector<Group> groups;
 
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    if (nodes[i].depth == minDepth) {
-      groups.push_back({nodes[i], {}});
+  for (const auto& n : nodes) {
+    if (n.depth == minDepth) {
+      groups.push_back({n, {}});
     } else if (!groups.empty()) {
       // Shift depth down by minDepth so children start at 1.
-      MarkdownNode shifted = nodes[i];
+      FlatNode shifted = n;
       shifted.depth -= minDepth;
       groups.back().children.push_back(shifted);
     }
@@ -221,8 +175,17 @@ int CmdPlan::execute(std::string& output) {
     return 1;
   }
 
-  // Parse and create.
-  auto nodes = parseMarkdown(markdown);
+  // Parse markdown and convert raw PlanNodes to depth-squashed FlatNodes.
+  // Raw level squash: level <= 2 → depth 1; level > 2 → depth = level - 1.
+  auto planNodes = tc::tc_parse_plan_markdown(markdown);
+  std::vector<FlatNode> nodes;
+  nodes.reserve(planNodes.size());
+  for (const auto& pn : planNodes) {
+    int depth = (pn.level <= 2) ? 1 : static_cast<int>(pn.level) - 1;
+    nodes.push_back({depth, static_cast<std::string>(pn.title),
+                     static_cast<std::string>(pn.annotation)});
+  }
+
   if (nodes.empty()) {
     Context::getContext().footnote("No headings found in markdown.");
     return 1;

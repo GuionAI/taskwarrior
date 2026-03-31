@@ -170,6 +170,7 @@ set (pythonTests
   summary.test.py
   tag.test.py
   timesheet.test.py
+  plan.test.py
   tree.test.py
   tw-1837.test.py
   tw-1999.test.py

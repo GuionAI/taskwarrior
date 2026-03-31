@@ -33,20 +33,20 @@
 #include <string>
 #include <vector>
 
-struct MarkdownNode {
-  int depth;             // 1 = direct child, 2 = grandchild, etc.
-  std::string title;
-  std::string annotation;
-};
-
 class CmdPlan : public Command {
  public:
   CmdPlan();
   int execute(std::string&);
 
  private:
-  std::vector<MarkdownNode> parseMarkdown(const std::string& input);
-  void createSubtasks(const std::string& parentUuid, const std::vector<MarkdownNode>& nodes,
+  // Internal node type after raw level squashing.
+  struct FlatNode {
+    int depth;  // squashed: level <= 2 → 1, else level - 1
+    std::string title;
+    std::string annotation;
+  };
+
+  void createSubtasks(const std::string& parentUuid, const std::vector<FlatNode>& nodes,
                       std::string& output);
   void renderSubtree(std::string& output, const std::string& parentUuid, int indent);
 };

@@ -258,6 +258,26 @@ mod ffi {
         fn had_invalid_data(self: &TreeMapWrapper) -> bool;
     }
 
+    // --- PlanNode
+
+    /// A single parsed section from a markdown plan document.
+    ///
+    /// `level` is the raw heading level (1 for `#`, 2 for `##`, etc.).
+    /// The C++ caller is responsible for any depth squashing.
+    struct PlanNode {
+        level: u32,
+        title: String,
+        annotation: String,
+    }
+
+    extern "Rust" {
+        /// Parse markdown into a flat list of PlanNode values.
+        ///
+        /// Headings inside fenced code blocks are never treated as headings.
+        /// `level` is the raw heading level; the C++ caller squashes depth.
+        fn tc_parse_plan_markdown(input: &CxxString) -> Vec<PlanNode>;
+    }
+
     // --- Position helpers (free functions)
 
     extern "Rust" {
@@ -803,6 +823,26 @@ fn tc_between_position(before_pos: &CxxString, after_pos: &CxxString) -> Result<
 
 fn tc_sequential_positions(n: usize) -> Vec<String> {
     tc::sequential_positions(n)
+}
+
+// --- Plan markdown parser
+
+fn tc_parse_plan_markdown(input: &CxxString) -> Vec<ffi::PlanNode> {
+    // Return empty on non-UTF-8 input; the C++ caller will report "No headings found".
+    let Ok(text) = input.to_str() else {
+        return Vec::new();
+    };
+    tc::plan::parse_markdown(text)
+        .into_iter()
+        .map(|s| ffi::PlanNode {
+            // Heading depths beyond u32::MAX are unreachable in practice, but we
+            // use try_from to make any truncation an explicit panic rather than a
+            // silent wraparound.
+            level: u32::try_from(s.level).expect("heading level overflows u32"),
+            title: s.heading,
+            annotation: s.body,
+        })
+        .collect()
 }
 
 #[cfg(test)]
