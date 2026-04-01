@@ -87,6 +87,7 @@ void CmdTree::renderTree(std::string& output, const rust::Box<tc::TreeMapWrapper
   }
 
   const Task& task = it->second;
+  if (task.getStatus() == Task::deleted) return;
   std::string connector = isLast ? "└─ " : "├─ ";
   output += prefix + connector + taskLine(uuid, task);
 

@@ -818,6 +818,46 @@ class TestTreeProjectDisplay(TestCase):
         self.assertNotIn("()", child_line)
 
 
+
+
+class TestTreeDeletedFilter(TestCase):
+    """Tests for deleted task filtering in tree output."""
+
+    def setUp(self):
+        self.t = Task()
+
+    def test_deleted_child_hidden(self):
+        """Deleted child tasks do not appear in tree output."""
+        self.t("add parent")
+        parent_uuid = get_uuid(self.t, "parent")
+        self.t(f"add child parent_id:{parent_uuid}")
+        child_uuid = get_uuid(self.t, "child")
+
+        # Delete the child
+        self.t(f"{child_uuid[:8]} delete", input="y\n")
+
+        # Run tree and verify child is hidden but parent remains
+        code, out, err = self.t("tree")
+        self.assertNotIn("child", out)
+        self.assertIn("parent", out)
+
+    def test_deleted_parent_hidden(self):
+        """Deleted parent tasks are not shown in tree output."""
+        self.t("add deleted-parent")
+        parent_uuid = get_uuid(self.t, "deleted-parent")
+
+        # Delete the parent
+        self.t(f"{parent_uuid[:8]} delete", input="y\n")
+
+        # Create a child pointing to the deleted parent
+        self.t(f"add orphan-child parent_id:{parent_uuid}")
+
+        # Run tree — deleted parent should not appear
+        code, out, err = self.t("tree")
+        self.assertNotIn("deleted-parent", out)
+        self.assertIn("orphan-child", out)
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 
