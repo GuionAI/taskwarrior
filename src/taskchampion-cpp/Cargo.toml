@@ -9,8 +9,9 @@ rust-version = "1.91.1"  # MSRV (taskchampion@3.0.2-pre requirement)
 crate-type = ["staticlib"]
 
 [dependencies]
-taskchampion = { git = "https://github.com/GuionAI/taskchampion.git", branch = "main", features = ["storage-powersync", "test-utils"] }
+taskchampion = { git = "https://github.com/GuionAI/taskchampion.git", tag = "v3.0.2-guion.38", features = ["storage-powersync", "storage-pgwire", "test-utils"] }
 anyhow = "1"
+async-trait = "0.1"
 cxx = "1.0.133"
 tokio = { version = "1", features = [ "rt" ] }
 
@@ -20,4 +21,4 @@ tokio = { version = "1", features = [ "rt" ] }
 cxx-build = "1.0.133"
 
 [dev-dependencies]
-taskchampion = { git = "https://github.com/GuionAI/taskchampion.git", branch = "main", features = ["storage-powersync", "test-utils"] }
+taskchampion = { git = "https://github.com/GuionAI/taskchampion.git", tag = "v3.0.2-guion.38", features = ["storage-powersync", "storage-pgwire", "test-utils"] }

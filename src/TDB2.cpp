@@ -60,6 +60,14 @@ void TDB2::open_replica(const std::string& db_path) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void TDB2::open_replica_pgwire(const std::string& database_url, const std::string& token) {
+  _replica = tc::new_replica_pgwire(database_url, token);
+  // Seed existing tags into the registry on first use after upgrade.
+  // Idempotent: already-registered tags are skipped.
+  replica()->seed_tags_from_tasks();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void TDB2::open_replica_for_test() { _replica = tc::new_replica_for_test(); }
 
 ////////////////////////////////////////////////////////////////////////////////

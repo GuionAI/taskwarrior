@@ -602,19 +602,36 @@ int Context::initialize(int argc, const char** argv) {
 
     createDefaultConfig();
 
-    // Read PowerSync config: taskrc first, env var override.
+    // Select storage backend based on FLICKNOTE_TOKEN env var.
+    // If FLICKNOTE_TOKEN is set → pgwire mode (sandbox pod), DATABASE_URL required.
+    // If FLICKNOTE_TOKEN is absent → powersync mode (local CLI).
     {
-      std::string ps_db = config.get("powersync.db_path");
+      char* env_token = getenv("FLICKNOTE_TOKEN");
 
-      char* env_ps_db = getenv("POWERSYNC_DB_PATH");
+      if (env_token && env_token[0] != '\0') {
+        // PgWire mode
+        char* env_db_url = getenv("DATABASE_URL");
+        if (!env_db_url || env_db_url[0] == '\0') {
+          throw std::string("PgWire mode (FLICKNOTE_TOKEN set) requires DATABASE_URL to be set");
+        }
+        pgwire_token = std::string(env_token);
+        pgwire_database_url = std::string(env_db_url);
+        use_pgwire = true;
+      } else {
+        // PowerSync mode: read from taskrc first, env var override.
+        std::string ps_db = config.get("powersync.db_path");
 
-      if (env_ps_db) ps_db = std::string(env_ps_db);
+        char* env_ps_db = getenv("POWERSYNC_DB_PATH");
+        if (env_ps_db) ps_db = std::string(env_ps_db);
 
-      if (ps_db.empty()) {
-        throw std::string("powersync.db_path must be set in taskrc or POWERSYNC_DB_PATH env var");
+        if (ps_db.empty()) {
+          throw std::string(
+              "powersync.db_path must be set in taskrc or POWERSYNC_DB_PATH env var");
+        }
+
+        powersync_db_path = ps_db;
+        use_pgwire = false;
       }
-
-      powersync_db_path = ps_db;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -697,7 +714,11 @@ int Context::initialize(int argc, const char** argv) {
     ////////////////////////////////////////////////////////////////////////////
 
     Command* c = commands[cli2.getCommand()];
-    tdb2.open_replica(powersync_db_path);
+    if (use_pgwire) {
+      tdb2.open_replica_pgwire(pgwire_database_url, pgwire_token);
+    } else {
+      tdb2.open_replica(powersync_db_path);
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     //

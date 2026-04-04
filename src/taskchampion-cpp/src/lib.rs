@@ -2,6 +2,7 @@ use cxx::CxxString;
 use std::path::PathBuf;
 use std::pin::Pin;
 use taskchampion as tc;
+use tc::storage::{Storage, StorageTxn};
 use tc::PowerSyncStorage;
 
 // All Taskchampion FFI is contained in this module, due to issues with cxx and multiple modules
@@ -103,6 +104,9 @@ mod ffi {
 
         /// Create a new replica backed by PowerSync storage.
         fn new_replica_powersync(db_path: String) -> Result<Box<Replica>>;
+
+        /// Create a new replica backed by PgWire storage.
+        fn new_replica_pgwire(database_url: String, token: String) -> Result<Box<Replica>>;
 
         /// Create a new in-memory test replica (PowerSync with ephemeral storage).
         fn new_replica_for_test() -> Result<Box<Replica>>;
@@ -534,12 +538,32 @@ fn add_undo_point(ops: &mut Vec<Operation>) {
     ops.push(Operation(tc::Operation::UndoPoint));
 }
 
+// --- DynStorage: runtime-selectable storage backend
+
+/// A storage backend that can be either PowerSync or PgWire, selected at runtime.
+enum DynStorage {
+    PowerSync(PowerSyncStorage),
+    PgWire(tc::PgWireStorage),
+}
+
+#[async_trait::async_trait]
+impl Storage for DynStorage {
+    async fn txn<'a>(
+        &'a mut self,
+    ) -> std::result::Result<Box<dyn StorageTxn + Send + 'a>, tc::Error> {
+        match self {
+            DynStorage::PowerSync(s) => s.txn().await,
+            DynStorage::PgWire(s) => s.txn().await,
+        }
+    }
+}
+
 // --- Replica
 
-struct Replica(tc::Replica<PowerSyncStorage>);
+struct Replica(tc::Replica<DynStorage>);
 
-impl From<tc::Replica<PowerSyncStorage>> for Replica {
-    fn from(inner: tc::Replica<PowerSyncStorage>) -> Self {
+impl From<tc::Replica<DynStorage>> for Replica {
+    fn from(inner: tc::Replica<DynStorage>) -> Self {
         Replica(inner)
     }
 }
@@ -550,7 +574,22 @@ fn new_replica_powersync(db_path: String) -> Result<Box<Replica>, CppError> {
         let storage = PowerSyncStorage::new(&path).await.map_err(|e| {
             anyhow::anyhow!("failed to open PowerSync DB at '{}': {}", path.display(), e)
         })?;
-        Ok(Box::new(tc::Replica::new(storage).into()))
+        Ok(Box::new(
+            tc::Replica::new(DynStorage::PowerSync(storage)).into(),
+        ))
+    })
+}
+
+fn new_replica_pgwire(database_url: String, token: String) -> Result<Box<Replica>, CppError> {
+    rt().block_on(async {
+        let storage = tc::PgWireStorage::new(&database_url, &token)
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("failed to open PgWire DB at '{}': {}", database_url, e)
+            })?;
+        Ok(Box::new(
+            tc::Replica::new(DynStorage::PgWire(storage)).into(),
+        ))
     })
 }
 
@@ -559,7 +598,9 @@ fn new_replica_for_test() -> Result<Box<Replica>, CppError> {
         let storage = PowerSyncStorage::new_for_test()
             .await
             .map_err(|e| anyhow::anyhow!("failed to create in-memory test replica: {}", e))?;
-        Ok(Box::new(tc::Replica::new(storage).into()))
+        Ok(Box::new(
+            tc::Replica::new(DynStorage::PowerSync(storage)).into(),
+        ))
     })
 }
 
@@ -966,7 +1007,7 @@ mod test {
     fn test_replica() -> Box<Replica> {
         rt().block_on(async {
             let storage = PowerSyncStorage::new_for_test().await.unwrap();
-            Box::new(tc::Replica::new(storage).into())
+            Box::new(tc::Replica::new(DynStorage::PowerSync(storage)).into())
         })
     }
 
