@@ -39,8 +39,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 CmdTagManage::CmdTagManage() {
   _keyword = "tag";
-  _usage = "task tag add <name> | list | migrate";
-  _description = "Manages the registered tag list (add, list, migrate)";
+  _usage = "task tag add <name> | delete <name> | list | migrate";
+  _description = "Manages the registered tag list (add, delete, list, migrate)";
   _read_only = false;
   _displays_id = false;
   _uses_context = false;
@@ -101,6 +101,20 @@ int CmdTagManage::execute(std::string& output) {
     Context::getContext().tdb2.replica()->register_tag(name);
     out << "Tag '" << name << "' registered.\n";
 
+    // --- tag delete <name> ---
+  } else if (subcommand == "delete") {
+    if (words.size() < 2) {
+      throw std::string("Usage: task tag delete <name>");
+    }
+
+    const std::string& name = words[1];
+    if (name.empty()) {
+      throw std::string("Tag name must not be empty.");
+    }
+
+    Context::getContext().tdb2.replica()->delete_tag(name);
+    out << "Tag '" << name << "' deleted.\n";
+
     // --- tag migrate ---
   } else if (subcommand == "migrate") {
     // Unconditionally scan all tasks and register any tag not yet in tc_config.
@@ -109,7 +123,7 @@ int CmdTagManage::execute(std::string& output) {
     out << "Tag migration complete. " << after.size() << " tag(s) now registered.\n";
 
   } else {
-    throw format("Unknown subcommand '{1}'. Usage: task tag add <name> | list | migrate",
+    throw format("Unknown subcommand '{1}'. Usage: task tag add <name> | delete <name> | list | migrate",
                  subcommand);
   }
 

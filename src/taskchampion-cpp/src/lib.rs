@@ -180,6 +180,12 @@ mod ffi {
         /// Returns an error if the tag is not registered, with a message directing the user
         /// to run `task tag add <name>` to register it.
         fn validate_tag(&mut self, name: &CxxString) -> Result<()>;
+
+        /// Delete (unregister) a tag by name from tc_config.
+        ///
+        /// Returns an error if the tag is not currently registered. If the tag is
+        /// registered, it is removed from tc_config and the updated config is persisted.
+        fn delete_tag(&mut self, name: &CxxString) -> Result<()>;
     }
 
     // --- OptionTaskData
@@ -716,6 +722,21 @@ impl Replica {
             }
         })
     }
+
+    fn delete_tag(&mut self, name: &CxxString) -> Result<(), CppError> {
+        let tag = name.to_string_lossy().into_owned();
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            if !config.remove_tag(&tag) {
+                return Err(CppError(tc::Error::Other(anyhow::anyhow!(
+                    "Tag '{}' is not registered.",
+                    tag
+                ))));
+            }
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
+        })
+    }
 }
 
 // --- OptionTaskData
@@ -1222,6 +1243,32 @@ mod test {
         assert!(
             rep.validate_tag(&existing).is_ok(),
             "previously registered tag should still be valid"
+        );
+    }
+
+    #[test]
+    fn delete_tag_removes_registered_tag() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "work");
+        rep.register_tag(&tag).unwrap();
+        // Tag should be registered.
+        assert!(rep.validate_tag(&tag).is_ok(), "tag should be registered");
+        // delete_tag should succeed and remove it.
+        rep.delete_tag(&tag).unwrap();
+        assert!(
+            rep.validate_tag(&tag).is_err(),
+            "tag should no longer be registered after delete_tag"
+        );
+    }
+
+    #[test]
+    fn delete_tag_errors_when_not_registered() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "ghost");
+        // Deleting an unregistered tag must return an error.
+        assert!(
+            rep.delete_tag(&tag).is_err(),
+            "delete_tag should fail for an unregistered tag"
         );
     }
 
