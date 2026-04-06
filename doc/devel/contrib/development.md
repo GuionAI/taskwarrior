@@ -13,6 +13,21 @@
  * clangd or ccls (for C++ integration in many editors)
  * rust-analyzer (for Rust integration in many editors)
 
+### Git Hooks (lefthook)
+
+Install [lefthook](https://github.com/evilmartians/lefthook) for Rust pre-commit and pre-push checks:
+
+```bash
+brew install lefthook
+lefthook install
+```
+
+Prerequisites: `rustup component add rustfmt clippy`.
+
+Hooks:
+- **pre-commit**: runs `cargo fmt --all -- --check` on staged `.rs` files
+- **pre-push**: runs `cargo clippy --all-features -- -D warnings`
+
 ## Obtain and Build Code:
 The following documentation works with CMake 3.14 and later.
 Here are the minimal steps to get started, using an out of source build directory and calling the underlying build tool over the CMake interface.

@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright 2025, Dustin J. Mitchell
+// Copyright 2006 - 2025, Tomas Babej, Paul Beckingham, Federico Hernandez.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,53 +24,18 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <cmake.h>
-// cmake.h include header must come first
+#ifndef INCLUDED_CMDTAGMANAGE
+#define INCLUDED_CMDTAGMANAGE
 
-#include <CmdInfo.h>
-#include <stdlib.h>
-#include <taskchampion-cpp/lib.h>
-#include <test.h>
-#include <util.h>
+#include <Command.h>
 
-#include <iostream>
+#include <string>
 
-namespace {
+class CmdTagManage : public Command {
+ public:
+  CmdTagManage();
+  int execute(std::string&);
+};
 
-////////////////////////////////////////////////////////////////////////////////
-int usage() {
-  std::cerr << "USAGE: make_tc_task DB_PATH KEY=VALUE ..\n";
-  return 1;
-}
-
-}  // namespace
-
-////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char** argv) {
-  if (!--argc) {
-    return usage();
-  }
-  std::string db_path = *++argv;
-
-  auto replica = tc::new_replica_powersync(db_path);
-  auto uuid = tc::uuid_v4();
-  auto operations = tc::new_operations();
-  auto task = tc::create_task(uuid, operations);
-
-  while (--argc) {
-    std::string arg = *++argv;
-    size_t eq_idx = arg.find('=');
-    if (eq_idx == std::string::npos) {
-      return usage();
-    }
-    std::string property = arg.substr(0, eq_idx);
-    std::string value = arg.substr(eq_idx + 1);
-    task->update(property, value, operations);
-  }
-  replica->commit_operations(std::move(operations));
-
-  std::cout << static_cast<std::string>(uuid.to_string()) << "\n";
-  return 0;
-}
-
+#endif
 ////////////////////////////////////////////////////////////////////////////////

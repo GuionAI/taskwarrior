@@ -45,7 +45,13 @@ else()
       FIND_PACKAGE_ARGS CONFIG
   )
   FetchContent_MakeAvailable(Corrosion)
-  add_subdirectory(${CMAKE_SOURCE_DIR}/src/taskchampion-cpp/corrosion)
+  # Only add the submodule directory if it is populated (has a CMakeLists.txt).
+  # When FetchContent downloads or overrides corrosion via
+  # FETCHCONTENT_SOURCE_DIR_CORROSION, the local submodule directory may be
+  # empty (e.g. in git worktrees), so we skip the add_subdirectory in that case.
+  if(EXISTS ${CMAKE_SOURCE_DIR}/src/taskchampion-cpp/corrosion/CMakeLists.txt)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/src/taskchampion-cpp/corrosion)
+  endif()
 endif()
 
 # Import taskchampion-lib as a CMake library. This implements the Rust side of

@@ -1386,7 +1386,6 @@ void Task::validate_add() {
   // Cannot have an old-style recur frequency with no due date.
   if (has("recur") && (!has("due") || get("due") == ""))
     throw std::string("A recurring task must also have a 'due' date.");
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1547,14 +1546,12 @@ void Task::validate(bool applyDefault /* = true */) {
 
     // Store the resolved full UUID back so all downstream FFI calls
     // (uuid_from_string) always receive a full 36-char UUID.
-    if (get("parent_id") != full_parent_uuid)
-      set("parent_id", full_parent_uuid);
+    if (get("parent_id") != full_parent_uuid) set("parent_id", full_parent_uuid);
 
     auto my_uuid = get("uuid");
 
     // Prevent self-parenting.
-    if (full_parent_uuid == my_uuid)
-      throw std::string("A task cannot be its own parent.");
+    if (full_parent_uuid == my_uuid) throw std::string("A task cannot be its own parent.");
 
     // Prevent circular references via bridge TreeMap.
     auto tm = Context::getContext().tdb2.tree_map();
@@ -1568,7 +1565,6 @@ void Task::validate(bool applyDefault /* = true */) {
                         "' is already a descendant of this task.");
   }
 #endif
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2001,6 +1997,7 @@ void Task::modify(modType type, bool text_required /* = false */) {
         feedback_reserved_tags(tag);
 
         if (a.attribute("sign") == "+") {
+          feedback_validate_tag(tag);
           Context::getContext().debug(label + "tags <-- add '" + tag + '\'');
           addTag(tag);
           feedback_special_tags(*this, tag);
@@ -2106,8 +2103,7 @@ void Task::modify(modType type, bool text_required /* = false */) {
         break;
       }
     }
-    if (!found)
-      throw format("Task '{1}' is not a sibling of this task.", target_uuid.substr(0, 8));
+    if (!found) throw format("Task '{1}' is not a sibling of this task.", target_uuid.substr(0, 8));
 
     // Use append/prepend when at an edge (neighbor_pos is empty), between otherwise.
     std::string new_pos;

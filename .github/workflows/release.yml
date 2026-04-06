@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-linux
+          - os: macos-latest
+            target: aarch64-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake git uuid-dev faketime locales \
+            python3 ninja-build ca-certificates make clang libclang-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Build task binary
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target task_executable
+
+      - name: Package binary + completions
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          mkdir -p pkg/completions
+          cp build/src/task pkg/
+          cp scripts/bash/task.sh pkg/completions/
+          cp scripts/zsh/_task pkg/completions/
+          cp scripts/fish/task.fish pkg/completions/
+          TARBALL="task-${VERSION}-${{ matrix.target }}.tar.gz"
+          tar czf "$TARBALL" -C pkg .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          path: task-*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/task-*.tar.gz
+          generate_release_notes: true
+
+      - name: Update GuionAI/homebrew-tap formula
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo '::add-mask::'$HOMEBREW_TAP_TOKEN
+
+          export VERSION=${GITHUB_REF_NAME#v}
+          export REPO
+          export SHA_LINUX=$(sha256sum artifacts/task-${VERSION}-x86_64-linux.tar.gz | cut -d' ' -f1)
+          export SHA_MACOS=$(sha256sum artifacts/task-${VERSION}-aarch64-macos.tar.gz | cut -d' ' -f1)
+
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/GuionAI/homebrew-tap.git tap
+
+          python3 - <<'SCRIPT'
+import os
+version = os.environ['VERSION']
+repo = os.environ['REPO']
+sha_linux = os.environ['SHA_LINUX']
+sha_macos = os.environ['SHA_MACOS']
+
+formula = f"""class Task < Formula
+  desc "A command-line todo list manager"
+  homepage "https://github.com/{repo}"
+  version "{version}"
+  license "MIT"
+  conflicts_with "go-task", because: "both install a 'task' binary"
+
+  on_macos do
+    on_arm do
+      url "https://github.com/{repo}/releases/download/v{version}/task-{version}-aarch64-macos.tar.gz"
+      sha256 "{sha_macos}"
+    end
+  end
+
+  on_linux do
+    on_intel do
+      url "https://github.com/{repo}/releases/download/v{version}/task-{version}-x86_64-linux.tar.gz"
+      sha256 "{sha_linux}"
+    end
+  end
+
+  def install
+    bin.install "task"
+    bash_completion.install "completions/task.sh"
+    zsh_completion.install "completions/_task"
+    fish_completion.install "completions/task.fish"
+  end
+
+  test do
+    system bin/"task", "--version"
+  end
+end
+"""
+
+os.makedirs("tap/Formula", exist_ok=True)
+with open("tap/Formula/task.rb", "w") as f:
+    f.write(formula)
+print("Formula written.")
+SCRIPT
+
+          cd tap
+          git config user.name "guion-bot"
+          git config user.email "bot@guion.io"
+          git add Formula/task.rb
+          git commit -m "task ${VERSION}"
+          git push

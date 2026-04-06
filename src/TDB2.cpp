@@ -49,19 +49,26 @@ static void dependency_scan(std::vector<Task>&);
 //   uuid/id  — synthetic keys managed by tch itself
 //   tags     — legacy comma-separated representation; tch-native tag_* keys carry the same data
 //   depends  — legacy comma-separated representation; tch-native dep_* keys carry the same data
-static const std::unordered_set<std::string> kTCSkippedKeys = {
-    "uuid", "id", "tags", "depends"
-};
+static const std::unordered_set<std::string> kTCSkippedKeys = {"uuid", "id", "tags", "depends"};
 
 ////////////////////////////////////////////////////////////////////////////////
 void TDB2::open_replica(const std::string& db_path) {
   _replica = tc::new_replica_powersync(db_path);
+  // Seed existing tags into the registry on first use after upgrade.
+  // Idempotent: already-registered tags are skipped.
+  replica()->seed_tags_from_tasks();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void TDB2::open_replica_for_test() {
-  _replica = tc::new_replica_for_test();
+void TDB2::open_replica_pgwire(const std::string& database_url, const std::string& token) {
+  _replica = tc::new_replica_pgwire(database_url, token);
+  // Seed existing tags into the registry on first use after upgrade.
+  // Idempotent: already-registered tags are skipped.
+  replica()->seed_tags_from_tasks();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+void TDB2::open_replica_for_test() { _replica = tc::new_replica_for_test(); }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Add the new task to the replica.
@@ -364,9 +371,7 @@ const std::vector<Task> TDB2::descendants(const std::string& parent_uuid) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Build a TreeMap from all tasks via the TCH bridge.
-rust::Box<tc::TreeMapWrapper> TDB2::tree_map() {
-  return replica()->tree_map();
-}
+rust::Box<tc::TreeMapWrapper> TDB2::tree_map() { return replica()->tree_map(); }
 
 ////////////////////////////////////////////////////////////////////////////////
 int TDB2::num_local_changes() { return (int)replica()->num_local_operations(); }

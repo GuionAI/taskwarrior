@@ -42,6 +42,7 @@ void feedback_affected(const std::string& effect);
 void feedback_affected(const std::string& effect, int quantity);
 void feedback_affected(const std::string& effect, const Task& task);
 void feedback_reserved_tags(const std::string& tag);
+void feedback_validate_tag(const std::string& tag);
 void feedback_special_tags(const Task& task, const std::string& tag);
 void feedback_unblocked(const Task& task);
 void feedback_backlog();

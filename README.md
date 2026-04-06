@@ -1,18 +1,16 @@
 <div align="center">
 <img src="https://avatars.githubusercontent.com/u/36100920?s=200&u=24da05914c20c4ccfe8485310f7b83049407fa9a&v=4"></br>
 
-[![CI](https://ci.guion.io/api/badges/GuionAI/taskwarrior/status.svg)](https://ci.guion.io/GuionAI/taskwarrior)
-[![GitHub Actions build status](https://github.com/GothenburgBitFactory/taskwarrior/workflows/tests/badge.svg?branch=develop)](https://github.com/GothenburgBitFactory/taskwarrior/actions)
-[![Coverage Status](https://coveralls.io/repos/github/GothenburgBitFactory/taskwarrior/badge.svg?branch=develop)](https://coveralls.io/github/GothenburgBitFactory/taskwarrior?branch=develop)
-[![Release](https://img.shields.io/github/v/release/GothenburgBitFactory/taskwarrior)](https://github.com/GothenburgBitFactory/taskwarrior/releases/latest)
-[![Release date](https://img.shields.io/github/release-date/GothenburgBitFactory/taskwarrior)](https://github.com/GothenburgBitFactory/taskwarrior/releases/latest)
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/GothenburgBitFactory?color=green)](https://github.com/sponsors/GothenburgBitFactory/)
+[![CI](https://github.com/GuionAI/taskwarrior/actions/workflows/ci.yaml/badge.svg?branch=develop)](https://github.com/GuionAI/taskwarrior/actions/workflows/ci.yaml)
+[![Release](https://img.shields.io/github/v/release/GuionAI/taskwarrior)](https://github.com/GuionAI/taskwarrior/releases/latest)
+[![Release date](https://img.shields.io/github/release-date/GuionAI/taskwarrior)](https://github.com/GuionAI/taskwarrior/releases/latest)
+[![Github downloads](https://img.shields.io/github/downloads/GuionAI/taskwarrior/total?label=Github%20downloads)](https://github.com/GuionAI/taskwarrior/releases)
 </br>
 </div>
 
 ## Taskwarrior
 ![OS-X downloads](https://img.shields.io/homebrew/installs/dy/task?label=OS-X%20downloads)
-![Github downloads](https://img.shields.io/github/downloads/GothenburgBitFactory/taskwarrior/total?label=Github%20downloads)
+![Github downloads](https://img.shields.io/github/downloads/GuionAI/taskwarrior/total?label=Github%20downloads)
 ![Linux downloads](https://img.shields.io/badge/Linux%20downloads-unknown-gray)
 
 Taskwarrior is a command line task list management utility with a [multitude of

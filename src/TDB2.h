@@ -45,6 +45,7 @@ class TDB2 {
   TDB2() = default;
 
   void open_replica(const std::string& db_path);
+  void open_replica_pgwire(const std::string& database_url, const std::string& token);
   void open_replica_for_test();
   void add(Task&);
   void modify(Task&);

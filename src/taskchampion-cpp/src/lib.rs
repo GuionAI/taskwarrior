@@ -2,6 +2,7 @@ use cxx::CxxString;
 use std::path::PathBuf;
 use std::pin::Pin;
 use taskchampion as tc;
+use tc::storage::{Storage, StorageTxn};
 use tc::PowerSyncStorage;
 
 // All Taskchampion FFI is contained in this module, due to issues with cxx and multiple modules
@@ -102,9 +103,10 @@ mod ffi {
         type Replica;
 
         /// Create a new replica backed by PowerSync storage.
-        fn new_replica_powersync(
-            db_path: String,
-        ) -> Result<Box<Replica>>;
+        fn new_replica_powersync(db_path: String) -> Result<Box<Replica>>;
+
+        /// Create a new replica backed by PgWire storage.
+        fn new_replica_pgwire(database_url: String, token: String) -> Result<Box<Replica>>;
 
         /// Create a new in-memory test replica (PowerSync with ephemeral storage).
         fn new_replica_for_test() -> Result<Box<Replica>>;
@@ -150,6 +152,44 @@ mod ffi {
 
         /// Build a TreeMap from all tasks in this replica.
         fn tree_map(&mut self) -> Result<Box<TreeMapWrapper>>;
+
+        // --- Tag registry operations
+
+        /// Return registered tag names from tc_config (tags that have been explicitly
+        /// added via `task tag add` or seeded via `task tag migrate`).
+        fn get_all_task_tags(&mut self) -> Result<Vec<String>>;
+
+        /// Seed the tag registry from existing task data (startup one-time migration).
+        ///
+        /// If tc_config already has at least one registered tag, this is a no-op — the
+        /// registry is considered already seeded. Otherwise scans all task data for tag_*
+        /// keys and adds each unique name to tc_config.tags. Intended to be called on
+        /// startup so that existing tags survive an upgrade without manual re-registration.
+        fn seed_tags_from_tasks(&mut self) -> Result<()>;
+
+        /// Migrate tags from existing task data into the registry (explicit CLI command).
+        ///
+        /// Unlike `seed_tags_from_tasks`, this always scans task data and adds any tag not
+        /// yet in the registry. Does not remove tags present in the registry but absent from
+        /// task data. Safe to run repeatedly.
+        fn migrate_tags_from_tasks(&mut self) -> Result<()>;
+
+        /// Register a tag by name in tc_config.
+        ///
+        /// If the tag is already registered, this is a no-op.
+        fn register_tag(&mut self, name: &CxxString) -> Result<()>;
+
+        /// Validate that a tag is registered in tc_config.
+        ///
+        /// Returns an error if the tag is not registered, with a message directing the user
+        /// to run `task tag add <name>` to register it.
+        fn validate_tag(&mut self, name: &CxxString) -> Result<()>;
+
+        /// Delete (unregister) a tag by name from tc_config.
+        ///
+        /// Returns an error if the tag is not currently registered. If the tag is
+        /// registered, it is removed from tc_config and the updated config is persisted.
+        fn delete_tag(&mut self, name: &CxxString) -> Result<()>;
     }
 
     // --- OptionTaskData
@@ -258,6 +298,26 @@ mod ffi {
 
         /// Returns true if any task had an invalid parent UUID during construction.
         fn had_invalid_data(self: &TreeMapWrapper) -> bool;
+    }
+
+    // --- PlanNode
+
+    /// A single parsed section from a markdown plan document.
+    ///
+    /// `level` is the raw heading level (1 for `#`, 2 for `##`, etc.).
+    /// The C++ caller is responsible for any depth squashing.
+    struct PlanNode {
+        level: u32,
+        title: String,
+        annotation: String,
+    }
+
+    extern "Rust" {
+        /// Parse markdown into a flat list of PlanNode values.
+        ///
+        /// Headings inside fenced code blocks are never treated as headings.
+        /// `level` is the raw heading level; the C++ caller squashes depth.
+        fn tc_parse_plan_markdown(input: &CxxString) -> Vec<PlanNode>;
     }
 
     // --- Position helpers (free functions)
@@ -478,32 +538,69 @@ fn add_undo_point(ops: &mut Vec<Operation>) {
     ops.push(Operation(tc::Operation::UndoPoint));
 }
 
+// --- DynStorage: runtime-selectable storage backend
+
+/// A storage backend that can be either PowerSync or PgWire, selected at runtime.
+enum DynStorage {
+    PowerSync(PowerSyncStorage),
+    PgWire(tc::PgWireStorage),
+}
+
+#[async_trait::async_trait]
+impl Storage for DynStorage {
+    async fn txn<'a>(
+        &'a mut self,
+    ) -> std::result::Result<Box<dyn StorageTxn + Send + 'a>, tc::Error> {
+        match self {
+            DynStorage::PowerSync(s) => s.txn().await,
+            DynStorage::PgWire(s) => s.txn().await,
+        }
+    }
+}
+
 // --- Replica
 
-struct Replica(tc::Replica<PowerSyncStorage>);
+struct Replica(tc::Replica<DynStorage>);
 
-impl From<tc::Replica<PowerSyncStorage>> for Replica {
-    fn from(inner: tc::Replica<PowerSyncStorage>) -> Self {
+impl From<tc::Replica<DynStorage>> for Replica {
+    fn from(inner: tc::Replica<DynStorage>) -> Self {
         Replica(inner)
     }
 }
 
-fn new_replica_powersync(
-    db_path: String,
-) -> Result<Box<Replica>, CppError> {
+fn new_replica_powersync(db_path: String) -> Result<Box<Replica>, CppError> {
     rt().block_on(async {
         let path = PathBuf::from(db_path);
-        let storage = PowerSyncStorage::new(&path).await
-            .map_err(|e| anyhow::anyhow!("failed to open PowerSync DB at '{}': {}", path.display(), e))?;
-        Ok(Box::new(tc::Replica::new(storage).into()))
+        let storage = PowerSyncStorage::new(&path).await.map_err(|e| {
+            anyhow::anyhow!("failed to open PowerSync DB at '{}': {}", path.display(), e)
+        })?;
+        Ok(Box::new(
+            tc::Replica::new(DynStorage::PowerSync(storage)).into(),
+        ))
+    })
+}
+
+fn new_replica_pgwire(database_url: String, token: String) -> Result<Box<Replica>, CppError> {
+    rt().block_on(async {
+        let storage = tc::PgWireStorage::new(&database_url, &token)
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("failed to open PgWire DB at '{}': {}", database_url, e)
+            })?;
+        Ok(Box::new(
+            tc::Replica::new(DynStorage::PgWire(storage)).into(),
+        ))
     })
 }
 
 fn new_replica_for_test() -> Result<Box<Replica>, CppError> {
     rt().block_on(async {
-        let storage = PowerSyncStorage::new_for_test().await
+        let storage = PowerSyncStorage::new_for_test()
+            .await
             .map_err(|e| anyhow::anyhow!("failed to create in-memory test replica: {}", e))?;
-        Ok(Box::new(tc::Replica::new(storage).into()))
+        Ok(Box::new(
+            tc::Replica::new(DynStorage::PowerSync(storage)).into(),
+        ))
     })
 }
 
@@ -603,6 +700,82 @@ impl Replica {
         rt().block_on(async {
             let arc = self.0.tree_map().await?;
             Ok(Box::new(TreeMapWrapper((*arc).clone())))
+        })
+    }
+
+    fn get_all_task_tags(&mut self) -> Result<Vec<String>, CppError> {
+        rt().block_on(async {
+            let config = self.0.get_tc_config_parsed().await?;
+            Ok(config.tag_list())
+        })
+    }
+
+    fn seed_tags_from_tasks(&mut self) -> Result<(), CppError> {
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            // Only auto-seed when the registry is empty (one-time migration guard).
+            if !config.tag_list().is_empty() {
+                return Ok(());
+            }
+            let task_tags = self.0.get_all_tags().await?;
+            for tag in task_tags {
+                config.add_tag(&tag);
+            }
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
+        })
+    }
+
+    fn migrate_tags_from_tasks(&mut self) -> Result<(), CppError> {
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            let task_tags = self.0.get_all_tags().await?;
+            for tag in task_tags {
+                config.add_tag(&tag);
+            }
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
+        })
+    }
+
+    fn register_tag(&mut self, name: &CxxString) -> Result<(), CppError> {
+        let tag = name.to_string_lossy().into_owned();
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            config.add_tag(&tag);
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
+        })
+    }
+
+    fn validate_tag(&mut self, name: &CxxString) -> Result<(), CppError> {
+        let tag = name.to_string_lossy().into_owned();
+        rt().block_on(async {
+            let config = self.0.get_tc_config_parsed().await?;
+            if !config.has_tag(&tag) {
+                Err(CppError(tc::Error::Other(anyhow::anyhow!(
+                    "Tag '{}' is not registered. Use 'task tag add {}' to register it.",
+                    tag,
+                    tag
+                ))))
+            } else {
+                Ok(())
+            }
+        })
+    }
+
+    fn delete_tag(&mut self, name: &CxxString) -> Result<(), CppError> {
+        let tag = name.to_string_lossy().into_owned();
+        rt().block_on(async {
+            let mut config = self.0.get_tc_config_parsed().await?;
+            if !config.remove_tag(&tag) {
+                return Err(CppError(tc::Error::Other(anyhow::anyhow!(
+                    "Tag '{}' is not registered.",
+                    tag
+                ))));
+            }
+            self.0.set_tc_config_parsed(&config).await?;
+            Ok(())
         })
     }
 }
@@ -807,6 +980,26 @@ fn tc_sequential_positions(n: usize) -> Vec<String> {
     tc::sequential_positions(n)
 }
 
+// --- Plan markdown parser
+
+fn tc_parse_plan_markdown(input: &CxxString) -> Vec<ffi::PlanNode> {
+    // Return empty on non-UTF-8 input; the C++ caller will report "No headings found".
+    let Ok(text) = input.to_str() else {
+        return Vec::new();
+    };
+    tc::plan::parse_markdown(text)
+        .into_iter()
+        .map(|s| ffi::PlanNode {
+            // Heading depths beyond u32::MAX are unreachable in practice, but we
+            // use try_from to make any truncation an explicit panic rather than a
+            // silent wraparound.
+            level: u32::try_from(s.level).expect("heading level overflows u32"),
+            title: s.heading,
+            annotation: s.body,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -814,7 +1007,7 @@ mod test {
     fn test_replica() -> Box<Replica> {
         rt().block_on(async {
             let storage = PowerSyncStorage::new_for_test().await.unwrap();
-            Box::new(tc::Replica::new(storage).into())
+            Box::new(tc::Replica::new(DynStorage::PowerSync(storage)).into())
         })
     }
 
@@ -1038,4 +1231,111 @@ mod test {
         );
     }
 
+    // --- Tag registry
+
+    #[test]
+    fn validate_tag_blocks_unregistered() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "work");
+        // Before any registration, validate_tag must return an error.
+        assert!(
+            rep.validate_tag(&tag).is_err(),
+            "validate_tag should fail for an unregistered tag"
+        );
+    }
+
+    #[test]
+    fn validate_tag_allows_registered() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "work");
+        rep.register_tag(&tag).unwrap();
+        assert!(
+            rep.validate_tag(&tag).is_ok(),
+            "validate_tag should succeed after register_tag"
+        );
+    }
+
+    #[test]
+    fn seed_tags_noop_when_registry_nonempty() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(existing = "work");
+        // Pre-register one tag.
+        rep.register_tag(&existing).unwrap();
+
+        // Create a task with a different tag that is NOT in the registry.
+        let mut ops = new_operations();
+        let uuid = uuid_v4();
+        let mut t = create_task(uuid, &mut ops);
+        cxx::let_cxx_string!(tag_key = "tag_urgent");
+        cxx::let_cxx_string!(tag_val = "x");
+        t.update(&tag_key, &tag_val, &mut ops);
+        rep.commit_operations(ops).unwrap();
+
+        // seed_tags_from_tasks should be a no-op because the registry is non-empty.
+        rep.seed_tags_from_tasks().unwrap();
+
+        // "urgent" should NOT have been seeded (registry was already populated).
+        cxx::let_cxx_string!(urgent = "urgent");
+        assert!(
+            rep.validate_tag(&urgent).is_err(),
+            "seed_tags_from_tasks should not seed when registry is non-empty"
+        );
+        // "work" should still be registered.
+        assert!(
+            rep.validate_tag(&existing).is_ok(),
+            "previously registered tag should still be valid"
+        );
+    }
+
+    #[test]
+    fn delete_tag_removes_registered_tag() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "work");
+        rep.register_tag(&tag).unwrap();
+        // Tag should be registered.
+        assert!(rep.validate_tag(&tag).is_ok(), "tag should be registered");
+        // delete_tag should succeed and remove it.
+        rep.delete_tag(&tag).unwrap();
+        assert!(
+            rep.validate_tag(&tag).is_err(),
+            "tag should no longer be registered after delete_tag"
+        );
+    }
+
+    #[test]
+    fn delete_tag_errors_when_not_registered() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(tag = "ghost");
+        // Deleting an unregistered tag must return an error.
+        assert!(
+            rep.delete_tag(&tag).is_err(),
+            "delete_tag should fail for an unregistered tag"
+        );
+    }
+
+    #[test]
+    fn migrate_tags_always_seeds() {
+        let mut rep = test_replica();
+        cxx::let_cxx_string!(existing = "work");
+        // Pre-register one tag so registry is non-empty.
+        rep.register_tag(&existing).unwrap();
+
+        // Create a task with an unregistered tag.
+        let mut ops = new_operations();
+        let uuid = uuid_v4();
+        let mut t = create_task(uuid, &mut ops);
+        cxx::let_cxx_string!(tag_key = "tag_urgent");
+        cxx::let_cxx_string!(tag_val = "x");
+        t.update(&tag_key, &tag_val, &mut ops);
+        rep.commit_operations(ops).unwrap();
+
+        // migrate_tags_from_tasks should register "urgent" even though registry was non-empty.
+        rep.migrate_tags_from_tasks().unwrap();
+
+        cxx::let_cxx_string!(urgent = "urgent");
+        assert!(
+            rep.validate_tag(&urgent).is_ok(),
+            "migrate_tags_from_tasks should register tags from task data unconditionally"
+        );
+    }
 }
