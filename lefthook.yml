@@ -16,19 +16,36 @@ pre-commit:
         [ "$violations" -eq 0 ] || exit 1
     end-of-file-fixer:
       run: |
+        violations=0
         for f in $(git diff --cached --name-only | grep -vE '\.(png|jpg|gif|ico|lock|woff2?)$'); do
           last=$(git show ":$f" 2>/dev/null | tail -c1 | od -An -tx1 | tr -d ' ')
-          if [ -n "$last" ] && [ "$last" != "0a" ]; then echo "no newline at EOF: $f"; fi
-        done
-    check-yaml:
-      run: |
-        for f in $(git diff --cached --name-only | grep -E '\.(yml|yaml)$'); do
-          if python3 -c "import yaml" 2>/dev/null; then
-            python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>&1 && echo "OK: $f" || { echo "YAML ERROR: $f"; exit 1; }
-          else
-            ruby -ryaml -e "YAML.load_file('$f')" 2>&1 && echo "OK: $f" || { echo "YAML ERROR: $f"; exit 1; }
+          if [ -n "$last" ] && [ "$last" != "0a" ]; then
+            echo "no newline at EOF: $f"
+            violations=$((violations + 1))
           fi
         done
+        [ "$violations" -eq 0 ] || exit 1
+    check-yaml:
+      run: |
+        violations=0
+        for f in $(git diff --cached --name-only | grep -E '\.(yml|yaml)$'); do
+          if python3 -c "import yaml, sys" 2>/dev/null; then
+            if git show ":$f" 2>/dev/null | python3 -c "import yaml, sys; yaml.safe_load(sys.stdin)" 2>&1; then
+              echo "OK: $f"
+            else
+              echo "YAML ERROR: $f"
+              violations=$((violations + 1))
+            fi
+          else
+            if git show ":$f" 2>/dev/null | ruby -ryaml -e 'YAML.load($stdin)' 2>&1; then
+              echo "OK: $f"
+            else
+              echo "YAML ERROR: $f"
+              violations=$((violations + 1))
+            fi
+          fi
+        done
+        [ "$violations" -eq 0 ] || exit 1
     check-added-large-files:
       run: |
         violations=0
