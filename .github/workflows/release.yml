@@ -69,6 +69,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -86,61 +89,15 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          echo '::add-mask::'$HOMEBREW_TAP_TOKEN
-
-          export VERSION=${GITHUB_REF_NAME#v}
-          export REPO
+          echo "::add-mask::${HOMEBREW_TAP_TOKEN}"
+          VERSION=${GITHUB_REF_NAME#v}
+          export VERSION REPO
           export SHA_LINUX=$(sha256sum artifacts/task-${VERSION}-x86_64-linux.tar.gz | cut -d' ' -f1)
           export SHA_MACOS=$(sha256sum artifacts/task-${VERSION}-aarch64-macos.tar.gz | cut -d' ' -f1)
 
           git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/GuionAI/homebrew-tap.git tap
 
-          python3 - <<'SCRIPT'
-import os
-version = os.environ['VERSION']
-repo = os.environ['REPO']
-sha_linux = os.environ['SHA_LINUX']
-sha_macos = os.environ['SHA_MACOS']
-
-formula = f"""class Task < Formula
-  desc "A command-line todo list manager"
-  homepage "https://github.com/{repo}"
-  version "{version}"
-  license "MIT"
-  conflicts_with "go-task", because: "both install a 'task' binary"
-
-  on_macos do
-    on_arm do
-      url "https://github.com/{repo}/releases/download/v{version}/task-{version}-aarch64-macos.tar.gz"
-      sha256 "{sha_macos}"
-    end
-  end
-
-  on_linux do
-    on_intel do
-      url "https://github.com/{repo}/releases/download/v{version}/task-{version}-x86_64-linux.tar.gz"
-      sha256 "{sha_linux}"
-    end
-  end
-
-  def install
-    bin.install "task"
-    bash_completion.install "completions/task.sh"
-    zsh_completion.install "completions/_task"
-    fish_completion.install "completions/task.fish"
-  end
-
-  test do
-    system bin/"task", "--version"
-  end
-end
-"""
-
-os.makedirs("tap/Formula", exist_ok=True)
-with open("tap/Formula/task.rb", "w") as f:
-    f.write(formula)
-print("Formula written.")
-SCRIPT
+          python3 .github/scripts/update-tap-formula.py
 
           cd tap
           git config user.name "guion-bot"

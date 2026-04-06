@@ -3,7 +3,7 @@ BUILD_DIR_TEST := build-test
 BUILD_TYPE     ?= Release
 NPROC          := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
-.PHONY: build install test clean
+.PHONY: build install test clean install-hooks
 
 build:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
@@ -22,3 +22,6 @@ test:
 
 clean:
 	rm -rf $(BUILD_DIR) $(BUILD_DIR_TEST)
+
+install-hooks:
+	lefthook install

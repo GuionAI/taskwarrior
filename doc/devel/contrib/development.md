@@ -19,7 +19,7 @@ Install [lefthook](https://github.com/evilmartians/lefthook) for Rust pre-commit
 
 ```bash
 brew install lefthook
-lefthook install
+make install-hooks
 ```
 
 Prerequisites: `rustup component add rustfmt clippy`.
