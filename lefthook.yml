@@ -4,6 +4,43 @@ pre-commit:
     cargo-fmt:
       glob: "*.rs"
       run: cargo fmt --all -- --check
+    trailing-whitespace:
+      run: |
+        violations=0
+        for f in $(git diff --cached --name-only); do
+          if git show ":$f" 2>/dev/null | grep -q '[[:space:]]$'; then
+            echo "trailing whitespace in: $f"
+            violations=$((violations + 1))
+          fi
+        done
+        [ "$violations" -eq 0 ] || exit 1
+    end-of-file-fixer:
+      run: |
+        for f in $(git diff --cached --name-only | grep -vE '\.(png|jpg|gif|ico|lock|woff2?)$'); do
+          last=$(git show ":$f" 2>/dev/null | tail -c1 | od -An -tx1 | tr -d ' ')
+          if [ -n "$last" ] && [ "$last" != "0a" ]; then echo "no newline at EOF: $f"; fi
+        done
+    check-yaml:
+      run: |
+        for f in $(git diff --cached --name-only | grep -E '\.(yml|yaml)$'); do
+          if python3 -c "import yaml" 2>/dev/null; then
+            python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>&1 && echo "OK: $f" || { echo "YAML ERROR: $f"; exit 1; }
+          else
+            ruby -ryaml -e "YAML.load_file('$f')" 2>&1 && echo "OK: $f" || { echo "YAML ERROR: $f"; exit 1; }
+          fi
+        done
+    check-added-large-files:
+      run: |
+        violations=0
+        for f in $(git diff --cached --name-only); do
+          sha=$(git ls-files -s "$f" | awk '{print $2}')
+          size=$(git cat-file -s "$sha" 2>/dev/null)
+          if [ -n "$size" ] && [ "$size" -gt 500000 ]; then
+            echo "large file staged (>500KB): $f ($size bytes)"
+            violations=$((violations + 1))
+          fi
+        done
+        [ "$violations" -eq 0 ] || exit 1
 
 pre-push:
   parallel: true
