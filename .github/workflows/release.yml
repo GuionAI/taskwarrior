@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  pull_request:
+    branches:
+      - develop
 
 permissions:
   contents: write
@@ -48,12 +51,11 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
             -w /src \
-            alpine:3.21 \
+            rust:alpine3.21 \
             sh -c '
               set -e
-              apk add --no-cache build-base cmake git util-linux-dev clang clang-dev curl bash
-              curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y --profile minimal --default-toolchain stable
-              . $HOME/.cargo/env
+              apk add --no-cache build-base cmake git util-linux-dev llvm19-dev clang19-libclang clang19-static
+              export LIBCLANG_STATIC_PATH=/usr/lib/llvm19/lib
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
               cmake --build build --target task_executable -j4
             '
@@ -77,6 +79,7 @@ jobs:
 
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
