@@ -61,7 +61,7 @@ jobs:
               export GIT_CONFIG_VALUE_0=/src
               git submodule update --init --recursive
               export LIBCLANG_PATH=/usr/lib/llvm19/lib
-              export RUSTFLAGS="-Ctarget-feature=-crt-static"
+              export RUSTFLAGS="-C crt-static=no"
               echo "=== DIAGNOSTICS ==="
               echo "RUSTFLAGS=$RUSTFLAGS"
               echo "LIBCLANG_PATH=$LIBCLANG_PATH"
