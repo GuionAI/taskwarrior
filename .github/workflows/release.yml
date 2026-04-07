@@ -113,7 +113,9 @@ jobs:
             'set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)' \
             'set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)' \
             > /tmp/musl-toolchain.cmake
-          export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs -r dirname || echo /usr/lib/llvm-14/lib)
+          _lib=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1)
+          export LIBCLANG_PATH=${_lib:+$(dirname "$_lib")}
+          export LIBCLANG_PATH=${LIBCLANG_PATH:-/usr/lib/llvm-14/lib}
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=/tmp/musl-toolchain.cmake \
