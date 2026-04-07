@@ -51,9 +51,13 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
             -w /src \
-            ghcr.io/guion-opensource/rust-musl:3.21 \
+            alpine:3.21 \
             sh -c '
               set -e
+              apk add --no-cache build-base cmake git util-linux-dev clang clang-dev curl bash
+              curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+              . $HOME/.cargo/env
+              rustup target add x86_64-unknown-linux-musl
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
               cmake --build build --target task_executable -j$(nproc)
             '
