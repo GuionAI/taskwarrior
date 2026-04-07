@@ -42,9 +42,6 @@
 #else
 #include <uuid/uuid.h>
 #endif
-#ifndef HAVE_UUID_UNPARSE_LOWER
-void uuid_unparse_lower(uuid_t uu, char* out);
-#endif
 #endif  // TASK_BUILTIN_UUID
 #include <Table.h>
 
