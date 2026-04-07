@@ -61,6 +61,9 @@ corrosion_import_crate(
   LOCKED
   CRATES "taskchampion-lib")
 
+# Disable static CRT linking so build scripts can call dlopen (needed for powersync_sqlite_nostd bindgen)
+corrosion_add_target_rustflags(taskchampion-lib "-C" "target-feature=-crt-static")
+
 # Set up `taskchampion-cpp`, the C++ side of the bridge.
 corrosion_add_cxxbridge(taskchampion-cpp
   CRATE taskchampion_lib

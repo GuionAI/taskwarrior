@@ -60,10 +60,10 @@ jobs:
               export GIT_CONFIG_KEY_0=safe.directory
               export GIT_CONFIG_VALUE_0=/src
               git submodule update --init --recursive
-              mkdir -p "$CARGO_HOME"
-              printf "[target.x86_64-unknown-linux-musl]\nrustflags = [\"-C\", \"target-feature=-crt-static\"]\n" > "$CARGO_HOME/config.toml"
+              export CARGO_ENCODED_RUSTFLAGS="-Ctarget-feature=-crt-static"
               export LIBCLANG_PATH=/usr/lib/llvm19/lib
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+              grep "CARGO_ENCODED" build/src/taskchampion-cpp/CMakeFiles/_cargo-build_taskchampion_lib.dir/build.make | head -3 || echo "no CARGO_ENCODED in makefile"
               cmake --build build --target task_executable -j4
             '
 
