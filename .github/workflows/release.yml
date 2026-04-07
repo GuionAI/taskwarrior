@@ -54,8 +54,10 @@ jobs:
             rust:alpine3.21 \
             sh -c '
               set -e
-              apk add --no-cache build-base cmake git util-linux-dev llvm19-dev clang19-libclang clang19-static
-              export LIBCLANG_STATIC_PATH=/usr/lib/llvm19/lib
+              apk add --no-cache build-base cmake git util-linux-dev clang-dev
+              git submodule update --init --recursive
+              export RUSTFLAGS="-C target-feature=-crt-static"
+              export LIBCLANG_PATH=/usr/lib/llvm19/lib
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
               cmake --build build --target task_executable -j4
             '
