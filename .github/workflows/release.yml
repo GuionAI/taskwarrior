@@ -64,7 +64,7 @@ jobs:
       - name: Create musl-cc/musl-cxx wrappers
         if: runner.os == 'Linux'
         run: |
-          ZIG=/opt/hostedtoolcache/zig/0.13.0/x64/zig
+          ZIG=$(which zig)
           sudo tee /usr/local/bin/musl-cc > /dev/null << 'WRAPPER'
           #!/bin/bash
           args=()
@@ -72,6 +72,7 @@ jobs:
           for arg in "$@"; do
               [ "$skip_next" = "1" ] && { skip_next=0; continue; }
               [ "$arg" = "-target" ] && { skip_next=1; continue; }
+              [[ "$arg" == --target=* ]] && continue
               args+=("$arg")
           done
           exec zig cc -target x86_64-linux-musl "${args[@]}"
@@ -83,6 +84,7 @@ jobs:
           for arg in "$@"; do
               [ "$skip_next" = "1" ] && { skip_next=0; continue; }
               [ "$arg" = "-target" ] && { skip_next=1; continue; }
+              [[ "$arg" == --target=* ]] && continue
               args+=("$arg")
           done
           exec zig c++ -target x86_64-linux-musl "${args[@]}"
@@ -100,6 +102,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_WORKS=1 \
             -DCMAKE_C_COMPILER=/usr/local/bin/musl-cc \
             -DCMAKE_CXX_COMPILER=/usr/local/bin/musl-cxx \
+            -DCMAKE_SYSROOT=$(zig c++ -target x86_64-linux-musl -print-sysroot 2>/dev/null || echo "") \
             -DUUID_LIBRARY=/usr/lib/x86_64-linux-gnu/libuuid.so \
             -DUUID_INCLUDE_DIR=/usr/include \
             -DRust_CARGO_TARGET=x86_64-unknown-linux-musl
