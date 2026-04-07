@@ -26,27 +26,37 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake git uuid-dev faketime locales \
-            python3 ninja-build ca-certificates make clang libclang-dev
-
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: brew install cmake
 
       - name: Set up Rust toolchain
+        if: runner.os == 'macOS'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
 
-      - name: Build task binary
+      - name: Build task binary (macOS)
+        if: runner.os == 'macOS'
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable
+
+      - name: Build task binary (Linux — musl/Alpine)
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src \
+            alpine:3.21 \
+            sh -c '
+              set -e
+              apk add --no-cache build-base cmake git util-linux-dev clang clang-dev curl bash
+              curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y --profile minimal --default-toolchain stable
+              . $HOME/.cargo/env
+              cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+              cmake --build build --target task_executable -j4
+            '
 
       - name: Package binary + completions
         run: |
