@@ -61,7 +61,8 @@ jobs:
               export GIT_CONFIG_VALUE_0=/src
               git submodule update --init --recursive
               export LIBCLANG_PATH=/usr/lib/llvm19/lib
-              export CARGO_ENCODED_RUSTFLAGS="-Ctarget-feature=-crt-static"
+              export RUSTFLAGS="-Ctarget-feature=-crt-static"
+              export CARGO_HOST_RUSTFLAGS="-Ctarget-feature=-crt-static"
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
               cmake --build build --target task_executable -j4
             '
