@@ -61,9 +61,7 @@ jobs:
               export GIT_CONFIG_VALUE_0=/src
               git submodule update --init --recursive
               export LIBCLANG_PATH=/usr/lib/llvm19/lib
-              mkdir -p "$CARGO_HOME"
-              echo W3RhcmdldC54ODZfNjQtdW5rbm93bi1saW51eC1tdXNsXQpydXN0ZmxhZ3MgPSBbIi1DIiwgInRhcmdldC1mZWF0dXJlPS1jcnQtc3RhdGljIl0K | base64 -d > "$CARGO_HOME/config.toml"
-              cat "$CARGO_HOME/config.toml"
+              export RUSTFLAGS="-Ctarget-feature=-crt-static"
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
               cmake --build build --target task_executable -j4
             '
