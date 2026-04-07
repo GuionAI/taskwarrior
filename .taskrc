@@ -1,1 +1,10 @@
-include /Users/neil/clawd/taskrc-for-teme
+news.version=3.4.2-guion.11
+
+uda.project_id.type=string
+uda.project_id.label=project_id
+uda.is_full_day.type=string
+uda.is_full_day.label=is_full_day
+uda.today_position.type=string
+uda.today_position.label=today_position
+uda.estimate.type=string
+uda.estimate.label=estimate
