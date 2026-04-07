@@ -45,24 +45,19 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable
 
-      - name: Build task binary (Linux — musl/Alpine)
+      - name: Build task binary (Linux — native)
         if: runner.os == 'Linux'
         run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/src" \
-            -w /src \
-            rust:alpine3.21 \
-            sh -c '
-              set -e
-              apk add --no-cache build-base cmake git util-linux-dev llvm19-dev clang19-libclang clang19-static
-              export LIBCLANG_STATIC_PATH=/usr/lib/llvm19/lib
-              cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-              cmake --build build --target task_executable -j4
-            '
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libclang-dev
+          export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs dirname || echo /usr/lib/llvm-14/lib)
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target task_executable -j$(nproc)
 
       - name: Package binary + completions
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          VERSION=$(echo "${GITHUB_REF_NAME#v}" | tr '/' '-')
           mkdir -p pkg/completions
           cp build/src/task pkg/
           cp scripts/bash/task.sh pkg/completions/
