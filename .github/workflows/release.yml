@@ -78,6 +78,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=/usr/local/bin/musl-cc \
             -DCMAKE_CXX_COMPILER=/usr/local/bin/musl-cxx \
+            -DUUID_LIBRARY=/usr/lib/x86_64-linux-gnu/libuuid.so \
+            -DUUID_INCLUDE_DIR=/usr/include \
             -DRust_CARGO_TARGET=x86_64-unknown-linux-musl
           cmake --build build --target task_executable -j$(nproc)
 
