@@ -70,11 +70,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq uuid-dev libclang-dev
           export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs dirname || echo /usr/lib/llvm-14/lib)
+          ZIG_SYSROOT=$(zig c++ -target x86_64-linux-musl -print-sysroot 2>/dev/null || echo /opt/hostedtoolcache/zig/0.13.0/x64)
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_FIND_ROOT_PATH=/usr/lib/x86_64-linux-gnu \
-            -DUUID_LIBRARY=/usr/lib/x86_64-linux-gnu/libuuid.so \
-            -DUUID_INCLUDE_DIR=/usr/include \
+            -DCMAKE_SYSROOT="$ZIG_SYSROOT" \
+            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=NEVER \
+            -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
             -DRust_CARGO_TARGET=x86_64-unknown-linux-musl
           cmake --build build --target task_executable -j$(nproc)
 
