@@ -47,12 +47,11 @@ jobs:
 
       - name: Build task binary (Linux — native)
         if: runner.os == 'Linux'
-        env:
-          LIBCLANG_PATH: /usr/lib/llvm-14/lib
         run: |
           set -e
+          sudo apt-get update -qq
           sudo apt-get install -y -qq libclang-dev
-          git submodule update --init --recursive
+          export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs dirname || echo /usr/lib/llvm-14/lib)
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable -j$(nproc)
 
