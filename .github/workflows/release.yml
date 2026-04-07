@@ -64,7 +64,17 @@ jobs:
               export RUSTFLAGS="-Ctarget-feature=-crt-static"
               export CARGO_HOST_RUSTFLAGS="-Ctarget-feature=-crt-static"
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-              cmake --build build --target task_executable -j4
+              echo "=== ENV CHECK ==="
+              echo "RUSTFLAGS=$RUSTFLAGS"
+              echo "CARGO_HOST_RUSTFLAGS=$CARGO_HOST_RUSTFLAGS"
+              cmake --build build --target task_executable -j4 || BUILD_FAILED=1
+              echo "=== BUILD SCRIPT BINARY TYPE ==="
+              file /src_aedae/release/build/powersync_sqlite_nostd-*/build-script-build 2>/dev/null || echo "binary not found at /src_aedae"
+              find /src -name build-script-build 2>/dev/null | head -3 | xargs file 2>/dev/null || echo "build-script-build not found anywhere"
+              echo "=== CARGO HOST RUSTFLAGS ==="
+              echo "CARGO_HOST_RUSTFLAGS=$CARGO_HOST_RUSTFLAGS"
+              echo "RUSTFLAGS=$RUSTFLAGS"
+              if [ "$BUILD_FAILED" = 1 ]; then exit 1; fi
             '
 
       - name: Package binary + completions
