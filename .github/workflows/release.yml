@@ -45,29 +45,15 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable
 
-      - name: Install zig (Linux)
-        if: runner.os == 'Linux'
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.14.0
-
-      - name: Build task binary (Linux — musl)
+      - name: Build task binary (Linux — native)
         if: runner.os == 'Linux'
         env:
           LIBCLANG_PATH: /usr/lib/llvm-14/lib
-          CARGO_ENCODED_RUSTFLAGS: ZgM4LXRhcmdldD14ODZfNjQtbm9uLWukZXh0cmEta2luay1tc3NsOicqJw==
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: zig c++ -target x86_64-linux-musl
         run: |
           set -e
           sudo apt-get install -y -qq libclang-dev
           git submodule update --init --recursive
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DRust_CARGO_TARGET=x86_64-unknown-linux-musl \
-            -DCMAKE_C_COMPILER=zig \
-            -DCMAKE_CXX_COMPILER=zig \
-            -DCMAKE_C_COMPILER_TARGET=x86_64-linux-musl \
-            -DCMAKE_CXX_COMPILER_TARGET=x86_64-linux-musl
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable -j$(nproc)
 
       - name: Package binary + completions
