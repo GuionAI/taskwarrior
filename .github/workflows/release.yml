@@ -57,15 +57,14 @@ jobs:
 
       - name: Set up Zig
         if: runner.os == 'Linux'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: "0.13.0"
+
+      - name: Create musl-cc/musl-cxx wrappers
+        if: runner.os == 'Linux'
         run: |
-          ZIG_VERSION=0.13.0
-          ZIG_TARBALL="zig-linux-x86_64-${ZIG_VERSION}.tar.xz"
-          curl -L "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_TARBALL}" -o /tmp/${ZIG_TARBALL}
-          ZIG_SHA256="d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea"
-          echo "${ZIG_SHA256}  /tmp/${ZIG_TARBALL}" | sha256sum -c
-          sudo tar xJ -C /opt /tmp/${ZIG_TARBALL}
-          ZIG=/opt/zig-linux-x86_64-${ZIG_VERSION}/zig
-          echo "zig version: $($ZIG version)"
+          ZIG=$(which zig)
           printf '#!/bin/sh\nexec %s cc -target x86_64-linux-musl "$@"\n' "$ZIG" | sudo tee /usr/local/bin/musl-cc > /dev/null
           printf '#!/bin/sh\nexec %s c++ -target x86_64-linux-musl "$@"\n' "$ZIG" | sudo tee /usr/local/bin/musl-cxx > /dev/null
           sudo chmod +x /usr/local/bin/musl-cc /usr/local/bin/musl-cxx
