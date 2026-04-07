@@ -45,14 +45,36 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable
 
-      - name: Build task binary (Linux — native)
+      - name: Set up Zig
         if: runner.os == 'Linux'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: "0.13.0"
+
+      - name: Set up Rust toolchain
+        if: runner.os == 'Linux'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: x86_64-unknown-linux-musl
+
+      - name: Build task binary (Linux — musl via zig)
+        if: runner.os == 'Linux'
+        env:
+          CC: zig cc -target x86_64-linux-musl
+          CXX: zig c++ -target x86_64-linux-musl
+          AR: zig ar
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: zig c++ -target x86_64-linux-musl
         run: |
           set -e
           sudo apt-get update -qq
           sudo apt-get install -y -qq libclang-dev
           export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs dirname || echo /usr/lib/llvm-14/lib)
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+            -DRust_CARGO_TARGET=x86_64-unknown-linux-musl
           cmake --build build --target task_executable -j$(nproc)
 
       - name: Package binary + completions
