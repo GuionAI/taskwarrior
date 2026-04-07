@@ -45,38 +45,40 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable
 
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y cmake clang libclang-dev
+
+      - name: Set up Rust musl target
+        if: runner.os == 'Linux'
+        run: rustup target add x86_64-unknown-linux-musl
+
       - name: Set up Zig
         if: runner.os == 'Linux'
-        uses: mlugg/setup-zig@v1
-        with:
-          version: "0.13.0"
+        run: |
+          ZIG_VERSION=0.13.0
+          ZIG_TARBALL="zig-linux-x86_64-${ZIG_VERSION}.tar.xz"
+          curl -L "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_TARBALL}" -o /tmp/${ZIG_TARBALL}
+          ZIG_SHA256="d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea"
+          echo "${ZIG_SHA256}  /tmp/${ZIG_TARBALL}" | sha256sum -c
+          sudo tar xJ -C /opt /tmp/${ZIG_TARBALL}
+          ZIG=/opt/zig-linux-x86_64-${ZIG_VERSION}/zig
+          echo "zig version: $($ZIG version)"
+          printf '#!/bin/sh\nexec %s cc -target x86_64-linux-musl "$@"\n' "$ZIG" | sudo tee /usr/local/bin/musl-cc > /dev/null
+          printf '#!/bin/sh\nexec %s c++ -target x86_64-linux-musl "$@"\n' "$ZIG" | sudo tee /usr/local/bin/musl-cxx > /dev/null
+          sudo chmod +x /usr/local/bin/musl-cc /usr/local/bin/musl-cxx
 
-      - name: Set up Rust toolchain
+      - name: Build task binary (Linux — musl)
         if: runner.os == 'Linux'
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          targets: x86_64-unknown-linux-musl
-
-      - name: Build task binary (Linux — musl via zig)
-        if: runner.os == 'Linux'
-        env:
-          CC: zig cc -target x86_64-linux-musl
-          CXX: zig c++ -target x86_64-linux-musl
-          AR: zig ar
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: zig c++ -target x86_64-linux-musl
         run: |
           set -e
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq uuid-dev libclang-dev
           export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs dirname || echo /usr/lib/llvm-14/lib)
-          ZIG_SYSROOT=$(zig c++ -target x86_64-linux-musl -print-sysroot 2>/dev/null || echo /opt/hostedtoolcache/zig/0.13.0/x64)
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_SYSROOT="$ZIG_SYSROOT" \
-            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=NEVER \
-            -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
+            -DCMAKE_C_COMPILER=/usr/local/bin/musl-cc \
+            -DCMAKE_CXX_COMPILER=/usr/local/bin/musl-cxx \
             -DRust_CARGO_TARGET=x86_64-unknown-linux-musl
           cmake --build build --target task_executable -j$(nproc)
 
