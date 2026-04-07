@@ -60,7 +60,8 @@ jobs:
               export GIT_CONFIG_KEY_0=safe.directory
               export GIT_CONFIG_VALUE_0=/src
               git submodule update --init --recursive
-              export RUSTFLAGS="-C target-feature=-crt-static"
+              mkdir -p "$CARGO_HOME"
+              printf "[target.x86_64-unknown-linux-musl]\nrustflags = [\"-C\", \"target-feature=-crt-static\"]\n" > "$CARGO_HOME/config.toml"
               export LIBCLANG_PATH=/usr/lib/llvm19/lib
               cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
               cmake --build build --target task_executable -j4
@@ -68,7 +69,7 @@ jobs:
 
       - name: Package binary + completions
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          VERSION=$(echo "${GITHUB_REF_NAME#v}" | tr '/' '-')
           mkdir -p pkg/completions
           cp build/src/task pkg/
           cp scripts/bash/task.sh pkg/completions/
