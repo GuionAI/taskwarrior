@@ -34,11 +34,18 @@
 
 #include <string>
 #include <vector>
+#ifdef TASK_BUILTIN_UUID
+// UUID via tc::uuid_v4() from cxx bridge — no libuuid required
+#else
 #if defined(FREEBSD) || defined(OPENBSD)
 #include <uuid.h>
 #else
 #include <uuid/uuid.h>
 #endif
+#ifndef HAVE_UUID_UNPARSE_LOWER
+void uuid_unparse_lower(uuid_t uu, char* out);
+#endif
+#endif  // TASK_BUILTIN_UUID
 #include <Table.h>
 
 // util.cpp
