@@ -65,8 +65,28 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           ZIG=/opt/hostedtoolcache/zig/0.13.0/x64/zig
-          printf '#!/bin/sh\nexec %s cc -target x86_64-linux-musl "$@"\n' "$ZIG" | sudo tee /usr/local/bin/musl-cc > /dev/null
-          printf '#!/bin/sh\nexec %s c++ -target x86_64-linux-musl "$@"\n' "$ZIG" | sudo tee /usr/local/bin/musl-cxx > /dev/null
+          sudo tee /usr/local/bin/musl-cc > /dev/null << 'WRAPPER'
+          #!/bin/bash
+          args=()
+          skip_next=0
+          for arg in "$@"; do
+              [ "$skip_next" = "1" ] && { skip_next=0; continue; }
+              [ "$arg" = "-target" ] && { skip_next=1; continue; }
+              args+=("$arg")
+          done
+          exec zig cc -target x86_64-linux-musl "${args[@]}"
+          WRAPPER
+          sudo tee /usr/local/bin/musl-cxx > /dev/null << 'WRAPPER'
+          #!/bin/bash
+          args=()
+          skip_next=0
+          for arg in "$@"; do
+              [ "$skip_next" = "1" ] && { skip_next=0; continue; }
+              [ "$arg" = "-target" ] && { skip_next=1; continue; }
+              args+=("$arg")
+          done
+          exec zig c++ -target x86_64-linux-musl "${args[@]}"
+          WRAPPER
           sudo chmod +x /usr/local/bin/musl-cc /usr/local/bin/musl-cxx
 
       - name: Build task binary (Linux — musl)
@@ -76,6 +96,8 @@ jobs:
           export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs dirname || echo /usr/lib/llvm-14/lib)
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_WORKS=1 \
+            -DCMAKE_CXX_COMPILER_WORKS=1 \
             -DCMAKE_C_COMPILER=/usr/local/bin/musl-cc \
             -DCMAKE_CXX_COMPILER=/usr/local/bin/musl-cxx \
             -DUUID_LIBRARY=/usr/lib/x86_64-linux-gnu/libuuid.so \
