@@ -46,13 +46,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y cmake clang libclang-dev uuid-dev
-
-      - name: Isolate UUID headers
-        if: runner.os == 'Linux'
-        run: |
-          sudo mkdir -p /opt/musl-includes/uuid
-          sudo cp /usr/include/uuid/uuid.h /opt/musl-includes/uuid/
+          sudo apt-get install -y cmake clang libclang-dev
 
       - name: Set up Rust musl target
         if: runner.os == 'Linux'
@@ -116,8 +110,7 @@ jobs:
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=/tmp/musl-toolchain.cmake \
-            -DUUID_INCLUDE_DIR=/opt/musl-includes \
-            -DUUID_LIBRARY=/usr/lib/x86_64-linux-gnu/libuuid.so \
+            -DTASK_BUILTIN_UUID=ON \
             -DRust_CARGO_TARGET=x86_64-unknown-linux-musl
           cmake --build build --target task_executable -j$(nproc)
 

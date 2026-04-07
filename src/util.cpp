@@ -118,7 +118,14 @@ int confirm4(const std::string& question) {
 // representation is always lowercase anyway.
 // For the implementation details, refer to
 // https://svnweb.freebsd.org/base/head/sys/kern/kern_uuid.c
-#if defined(FREEBSD) || defined(OPENBSD)
+#if defined(TASK_BUILTIN_UUID)
+#include <taskchampion-cpp/lib.h>
+
+const std::string uuid() {
+  auto uid = tc::uuid_v4();
+  return std::string(uid.to_string());
+}
+#elif defined(FREEBSD) || defined(OPENBSD)
 const std::string uuid() {
   uuid_t id;
   uint32_t status;
@@ -132,6 +139,7 @@ const std::string uuid() {
   return res;
 }
 #else
+// Linux: use libuuid
 
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef HAVE_UUID_UNPARSE_LOWER
@@ -155,7 +163,7 @@ const std::string uuid() {
 
   return std::string(buffer);
 }
-#endif
+#endif  // TASK_BUILTIN_UUID / FREEBSD / else
 
 // Collides with std::numeric_limits methods
 #undef max

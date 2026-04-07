@@ -111,7 +111,9 @@ int CmdDiagnostics::execute(std::string& output) {
       << "      CMake: " << CMAKE_VERSION << '\n';
 
   out << "    libuuid: "
-#ifdef HAVE_UUID_UNPARSE_LOWER
+#ifdef TASK_BUILTIN_UUID
+      << "tc::uuid_v4() (cxx bridge, no libuuid)"
+#elif defined(HAVE_UUID_UNPARSE_LOWER)
       << "libuuid + uuid_unparse_lower"
 #else
       << "libuuid, no uuid_unparse_lower"

@@ -73,30 +73,39 @@ check_function_exists (wordexp HAVE_WORDEXP)
 check_struct_has_member ("struct tm" tm_gmtoff time.h HAVE_TM_GMTOFF)
 check_struct_has_member ("struct stat" st_birthtime "sys/types.h;sys/stat.h" HAVE_ST_BIRTHTIME)
 
-message ("-- Looking for libuuid")
-if (DARWIN OR FREEBSD OR OPENBSD)
-  # Apple and FreeBSD include the uuid functions in their libc, rather than libuuid
-  check_function_exists (uuid_unparse_lower HAVE_UUID_UNPARSE_LOWER)
-else (DARWIN OR FREEBSD OR OPENBSD)
-  find_path    (UUID_INCLUDE_DIR   uuid/uuid.h)
-  find_library (UUID_LIBRARY NAMES uuid)
-  if (UUID_INCLUDE_DIR AND UUID_LIBRARY)
-    set (TASK_INCLUDE_DIRS ${TASK_INCLUDE_DIRS} ${UUID_INCLUDE_DIR})
-    set (TASK_LIBRARIES    ${TASK_LIBRARIES}    ${UUID_LIBRARY})
-    # Look for uuid_unparse_lower
-    set (CMAKE_REQUIRED_INCLUDES  ${CMAKE_REQUIRED_INCLUDES}  ${UUID_INCLUDE_DIR})
-    set (CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${UUID_LIBRARY})
-    check_function_exists (uuid_unparse_lower HAVE_UUID_UNPARSE_LOWER)
-  else (UUID_INCLUDE_DIR AND UUID_LIBRARY)
-    message (FATAL_ERROR "-- libuuid not found.")
-  endif (UUID_INCLUDE_DIR AND UUID_LIBRARY)
-endif (DARWIN OR FREEBSD OR OPENBSD)
+option(TASK_BUILTIN_UUID "Use tc::uuid_v4() from cxx bridge — no libuuid required" OFF)
 
-if (HAVE_UUID_UNPARSE_LOWER)
-  message ("-- Found libuuid")
-else (HAVE_UUID_UNPARSE_LOWER)
-  message ("-- Found libuuid, using internal uuid_unparse_lower")
-endif (HAVE_UUID_UNPARSE_LOWER)
+if (TASK_BUILTIN_UUID)
+  message ("-- UUID: using tc::uuid_v4() from cxx bridge (no libuuid)")
+  set (HAVE_UUID_UNPARSE_LOWER TRUE)  # prevents fallback uuid_unparse_lower from compiling
+  add_definitions (-DTASK_BUILTIN_UUID)
+  # uuid intentionally not added to TASK_INCLUDE_DIRS or TASK_LIBRARIES in this path
+else ()
+  message ("-- Looking for libuuid")
+  if (DARWIN OR FREEBSD OR OPENBSD)
+    # Apple and FreeBSD include the uuid functions in their libc, rather than libuuid
+    check_function_exists (uuid_unparse_lower HAVE_UUID_UNPARSE_LOWER)
+  else (DARWIN OR FREEBSD OR OPENBSD)
+    find_path    (UUID_INCLUDE_DIR   uuid/uuid.h)
+    find_library (UUID_LIBRARY NAMES uuid)
+    if (UUID_INCLUDE_DIR AND UUID_LIBRARY)
+      set (TASK_INCLUDE_DIRS ${TASK_INCLUDE_DIRS} ${UUID_INCLUDE_DIR})
+      set (TASK_LIBRARIES    ${TASK_LIBRARIES}    ${UUID_LIBRARY})
+      # Look for uuid_unparse_lower
+      set (CMAKE_REQUIRED_INCLUDES  ${CMAKE_REQUIRED_INCLUDES}  ${UUID_INCLUDE_DIR})
+      set (CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${UUID_LIBRARY})
+      check_function_exists (uuid_unparse_lower HAVE_UUID_UNPARSE_LOWER)
+    else (UUID_INCLUDE_DIR AND UUID_LIBRARY)
+      message (FATAL_ERROR "-- libuuid not found.")
+    endif (UUID_INCLUDE_DIR AND UUID_LIBRARY)
+  endif (DARWIN OR FREEBSD OR OPENBSD)
+
+  if (HAVE_UUID_UNPARSE_LOWER)
+    message ("-- Found libuuid")
+  else (HAVE_UUID_UNPARSE_LOWER)
+    message ("-- Found libuuid, using internal uuid_unparse_lower")
+  endif (HAVE_UUID_UNPARSE_LOWER)
+endif () # TASK_BUILTIN_UUID
 
 if (HAIKU)
   # search for socket() in libnetwork on Haiku
