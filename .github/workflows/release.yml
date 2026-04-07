@@ -45,37 +45,29 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable
 
-      - name: Build task binary (Linux — musl/Alpine)
+      - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           set -e
-          docker run --rm \
-            -v "${{ github.workspace }}:/src" \
-            -w /src \
-            rust:alpine3.21 \
-            sh -c '
-              set -e
-              apk add --no-cache build-base cmake git util-linux-dev clang-dev
-              export GIT_CONFIG_COUNT=1
-              export GIT_CONFIG_KEY_0=safe.directory
-              export GIT_CONFIG_VALUE_0=/src
-              git submodule update --init --recursive
-              export LIBCLANG_PATH=/usr/lib/llvm19/lib
-              export RUSTFLAGS="-Ctarget-feature=-crt-static"
-              export CARGO_HOST_RUSTFLAGS="-Ctarget-feature=-crt-static"
-              cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-              echo "=== ENV CHECK ==="
-              echo "RUSTFLAGS=$RUSTFLAGS"
-              echo "CARGO_HOST_RUSTFLAGS=$CARGO_HOST_RUSTFLAGS"
-              cmake --build build --target task_executable -j4 || BUILD_FAILED=1
-              echo "=== BUILD SCRIPT BINARY TYPE ==="
-              file /src_aedae/release/build/powersync_sqlite_nostd-*/build-script-build 2>/dev/null || echo "binary not found at /src_aedae"
-              find /src -name build-script-build 2>/dev/null | head -3 | xargs file 2>/dev/null || echo "build-script-build not found anywhere"
-              echo "=== CARGO HOST RUSTFLAGS ==="
-              echo "CARGO_HOST_RUSTFLAGS=$CARGO_HOST_RUSTFLAGS"
-              echo "RUSTFLAGS=$RUSTFLAGS"
-              if [ "$BUILD_FAILED" = 1 ]; then exit 1; fi
-            '
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libclang-dev cmake git xz-utils
+          curl -fsSL https://zig.sh | CI=true bash -s -- -t x86_64-linux-musl
+
+      - name: Build task binary (Linux — musl)
+        if: runner.os == 'Linux'
+        env:
+          LIBCLANG_PATH: /usr/lib/llvm-14/lib
+          CARGO_ENCODED_RUSTFLAGS: ZgM4LXRhcmdldD14ODZfNjQtbm9uLWukZXh0cmEta2luay1tc3NsOicqJw==
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: zig c++ -target x86_64-linux-musl
+        run: |
+          set -e
+          git submodule update --init --recursive
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DRust_CARGO_TARGET=x86_64-unknown-linux-musl \
+            -DCMAKE_C_COMPILER="zig cc -target x86_64-linux-musl" \
+            -DCMAKE_CXX_COMPILER="zig c++ -target x86_64-linux-musl"
+          cmake --build build --target task_executable -j$(nproc)
 
       - name: Package binary + completions
         run: |
