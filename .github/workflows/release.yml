@@ -70,9 +70,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq uuid-dev libclang-dev
           export LIBCLANG_PATH=$(dpkg -L libclang-dev 2>/dev/null | grep 'libclang.*\.so$' | head -1 | xargs dirname || echo /usr/lib/llvm-14/lib)
-          export SYSROOT=/usr/x86_64-linux-gnu
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_FIND_ROOT_PATH=/usr/lib/x86_64-linux-gnu \
+            -DUUID_LIBRARY=/usr/lib/x86_64-linux-gnu/libuuid.so \
+            -DUUID_INCLUDE_DIR=/usr/include \
             -DRust_CARGO_TARGET=x86_64-unknown-linux-musl
           cmake --build build --target task_executable -j$(nproc)
 
