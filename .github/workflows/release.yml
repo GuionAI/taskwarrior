@@ -45,12 +45,11 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target task_executable
 
-      - name: Install dependencies (Linux)
+      - name: Install zig (Linux)
         if: runner.os == 'Linux'
-        uses: azambania/zig-action@v1
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.14.0
-          targets: x86_64-linux-musl
 
       - name: Build task binary (Linux — musl)
         if: runner.os == 'Linux'
