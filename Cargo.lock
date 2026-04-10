@@ -1366,6 +1366,7 @@ dependencies = [
 [[package]]
 name = "taskchampion"
 version = "3.0.2-pre"
+source = "git+https://github.com/GuionAI/taskchampion.git?tag=v3.0.2-guion.45#a2e61a42c2b8f9581de5e3f00f2cd858af90e994"
 dependencies = [
  "anyhow",
  "async-trait",
