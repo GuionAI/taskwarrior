@@ -5,3 +5,6 @@ members = [
 ]
 
 resolver = "2"
+
+[patch."https://github.com/GuionAI/taskchampion.git"]
+taskchampion = { path = "../taskchampion" }
