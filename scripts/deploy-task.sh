@@ -56,12 +56,18 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 TOOLCHAIN
 
-echo "==> Configuring cmake with musl toolchain..."
+echo "==> Setting CC/CXX for cmake and cargo cc-rs..."
 export CC=/usr/local/bin/musl-cc
 export CXX=/usr/local/bin/musl-cxx
+# cc-rs uses target-specific env vars for cross-compilation (hyphens → underscores)
+export CC_x86_64_unknown_linux_musl=/usr/local/bin/musl-cc
+export CXX_x86_64_unknown_linux_musl=/usr/local/bin/musl-cxx
+
+echo "==> Configuring cmake with musl toolchain..."
 cmake -S . -B ${BUILD_DIR} \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=/tmp/musl-toolchain.cmake \
+  -DTASK_BUILTIN_UUID=ON \
   -DRust_CARGO_TARGET=${TARGET}
 
 echo "==> Building task binary..."
