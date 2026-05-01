@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <sstream>
+#include <unordered_set>
 
 // Overridden by rc.abbreviation.minimum.
 int CLI2::minimumMatchLength = 3;
@@ -573,12 +574,14 @@ void CLI2::addContext(bool readable, bool writeable) {
 void CLI2::prepareFilter() {
   // Clear and re-populate.
   _uuid_list.clear();
+  _pure_uuid_filter = false;
   _context_added = false;
 
   // Remove all the syntactic sugar for FILTERs.
   lexFilterArgs();
   findIDs();
   findUUIDs();
+  detectPureUuidFilter();
   insertIDExpr();
   desugarFilterPlainArgs();
   findStrayModifications();
@@ -1407,6 +1410,48 @@ void CLI2::findUUIDs() {
   if (changes)
     if (Context::getContext().config.getInteger("debug.parser") >= 2)
       Context::getContext().debug(dump("CLI2::prepareFilter findUUIDs"));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Decide whether the user's filter is purely UUID(s) — `task abc12345 export`,
+// `task abc12345,def67890 done`. Runs between findUUIDs (which populates
+// _uuid_list) and insertIDExpr (which rewrites the original tokens into a
+// synthesized `(uuid="..." or ...)` expression). After insertIDExpr the
+// original shape is gone, so this is the only seam where the predicate can
+// inspect the user's literal input.
+//
+// The predicate is conservative: any FILTER-tagged arg that isn't a
+// known-UUID-prefix raw token (or a comma-set of them) bails out, leaving the
+// bool false and routing to the existing slow path.
+void CLI2::detectPureUuidFilter() {
+  if (_uuid_list.empty()) return;
+
+  std::unordered_set<std::string> uuid_set(_uuid_list.begin(), _uuid_list.end());
+
+  for (const auto& a : _args) {
+    if (!a.hasTag("FILTER")) continue;
+
+    const std::string raw = a.attribute("raw");
+
+    if (a._lextype == Lexer::Type::word ||
+        a._lextype == Lexer::Type::identifier ||
+        a._lextype == Lexer::Type::uuid) {
+      if (uuid_set.find(raw) == uuid_set.end()) return;
+    } else if (a._lextype == Lexer::Type::set) {
+      // The raw attribute is the FULL comma-separated string, not an individual
+      // element — _uuid_list was populated by splitting via pushHexPrefixesFromSet.
+      auto elements = split(raw, ',');
+      if (elements.empty()) return;
+      for (auto& element : elements) {
+        if (!looksLikeHexPrefix(element)) return;
+        if (uuid_set.find(element) == uuid_set.end()) return;
+      }
+    } else {
+      return;
+    }
+  }
+
+  _pure_uuid_filter = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

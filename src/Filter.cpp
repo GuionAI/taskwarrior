@@ -80,10 +80,30 @@ void Filter::subset(const std::vector<Task>& input, std::vector<Task>& output) {
 // Take the set of all tasks and filter into a subset.
 void Filter::subset(std::vector<Task>& output) {
   Timer timer;
-  Context::getContext().cli2.prepareFilter();
+  auto& cli2 = Context::getContext().cli2;
+  cli2.prepareFilter();
+
+  // Pure-UUID fast path: the entire filter resolves to N UUID(s). Skip the
+  // pending+completed loads and resolve via TDB2::get per UUID. tdb2.get
+  // already covers the recurring-template fallback (its tier 3 walks
+  // all_task_data), so the lines-139-147 fallback is correctly bypassed here.
+  if (cli2._pure_uuid_filter) {
+    auto& tdb2 = Context::getContext().tdb2;
+    output.clear();
+    for (const auto& uuid : cli2._uuid_list) {
+      Task t;
+      if (tdb2.get(uuid, t)) output.push_back(t);
+    }
+    _startCount = (int)cli2._uuid_list.size();
+    _endCount = (int)output.size();
+    Context::getContext().debug(
+        format("Filtered {1} tasks --> {2} tasks [pure uuid]", _startCount, _endCount));
+    Context::getContext().time_filter_us += timer.total_us();
+    return;
+  }
 
   std::vector<std::pair<std::string, Lexer::Type>> precompiled;
-  for (auto& a : Context::getContext().cli2._args)
+  for (auto& a : cli2._args)
     if (a.hasTag("FILTER")) precompiled.emplace_back(a.getToken(), a._lextype);
 
   // Shortcut indicates that only pending.data needs to be loaded.
