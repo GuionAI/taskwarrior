@@ -153,6 +153,12 @@ mod ffi {
         /// Build a TreeMap from all tasks in this replica.
         fn tree_map(&mut self) -> Result<Box<TreeMapWrapper>>;
 
+        /// Return a snapshot of the cached DependencyMap so callers can answer
+        /// is_blocked/is_blocking in O(1). Uses the underlying replica's cache
+        /// (force=false), so calling this repeatedly within a single command
+        /// is cheap.
+        fn dependency_map(&mut self) -> Result<Box<DependencyMapWrapper>>;
+
         // --- Tag registry operations
 
         /// Return registered tag names from tc_config (tags that have been explicitly
@@ -298,6 +304,20 @@ mod ffi {
 
         /// Returns true if any task had an invalid parent UUID during construction.
         fn had_invalid_data(self: &TreeMapWrapper) -> bool;
+    }
+
+    // --- DependencyMapWrapper
+
+    extern "Rust" {
+        type DependencyMapWrapper;
+
+        /// Returns true if the task with the given UUID has at least one pending
+        /// dependency (i.e., is blocked).
+        fn is_blocked(self: &DependencyMapWrapper, uuid: Uuid) -> bool;
+
+        /// Returns true if the task with the given UUID has at least one pending
+        /// dependent (i.e., is blocking something).
+        fn is_blocking(self: &DependencyMapWrapper, uuid: Uuid) -> bool;
     }
 
     // --- PlanNode
@@ -703,6 +723,13 @@ impl Replica {
         })
     }
 
+    fn dependency_map(&mut self) -> Result<Box<DependencyMapWrapper>, CppError> {
+        rt().block_on(async {
+            let arc = self.0.dependency_map(false).await?;
+            Ok(Box::new(DependencyMapWrapper(arc)))
+        })
+    }
+
     fn get_all_task_tags(&mut self) -> Result<Vec<String>, CppError> {
         rt().block_on(async {
             let config = self.0.get_tc_config_parsed().await?;
@@ -951,6 +978,20 @@ impl TreeMapWrapper {
 
     fn had_invalid_data(&self) -> bool {
         self.0.had_invalid_data()
+    }
+}
+
+// --- DependencyMapWrapper
+
+struct DependencyMapWrapper(std::sync::Arc<tc::DependencyMap>);
+
+impl DependencyMapWrapper {
+    fn is_blocked(&self, uuid: ffi::Uuid) -> bool {
+        self.0.dependencies(uuid.into()).next().is_some()
+    }
+
+    fn is_blocking(&self, uuid: ffi::Uuid) -> bool {
+        self.0.dependents(uuid.into()).next().is_some()
     }
 }
 
