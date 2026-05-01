@@ -35,7 +35,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 int TEST_NAME(int, char**) {
-  UnitTest t(16);
+  UnitTest t(21);
   Context context;
   Context::setContext(&context);
 
@@ -117,6 +117,30 @@ int TEST_NAME(int, char**) {
       t.ok(b && b->is_blocking == false,
            "TDB2 depmap: recurring target leaves B.is_blocking=false");
     }
+
+    // Unit tests for looksLikeFullUuid — guards the FFI panic path.
+    // Positive cases:
+    t.ok(looksLikeFullUuid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+         "looksLikeFullUuid: valid lowercase uuid");
+    t.ok(looksLikeFullUuid("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"),
+         "looksLikeFullUuid: valid uppercase uuid");
+    t.ok(looksLikeFullUuid("deadbeef-1234-5678-9abc-def012345678"),
+         "looksLikeFullUuid: mixed case valid uuid");
+    // Negative cases:
+    t.ok(!looksLikeFullUuid(""),
+         "looksLikeFullUuid: empty string rejected");
+    t.ok(!looksLikeFullUuid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee"),
+         "looksLikeFullUuid: 35 chars rejected");
+    t.ok(!looksLikeFullUuid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee"),
+         "looksLikeFullUuid: 37 chars rejected");
+    t.ok(!looksLikeFullUuid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee-ff"),
+         "looksLikeFullUuid: 41 chars rejected");
+    t.ok(!looksLikeFullUuid("--------bbbbccccddddeeeeeeeeeeee"),
+         "looksLikeFullUuid: all hyphens rejected");
+    t.ok(!looksLikeFullUuid("aaaaaaaa-bbbb-cccc-dddd-gggggggggggg"),
+         "looksLikeFullUuid: non-hex chars rejected");
+    t.ok(!looksLikeFullUuid("aaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+         "looksLikeFullUuid: hyphen at wrong position rejected");
 
     // Scenario (b): two tasks whose UUIDs share the first 8 hex chars. The
     // 8-char-prefix lookup must still succeed (first-found-wins preserved).

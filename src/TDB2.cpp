@@ -64,7 +64,9 @@ bool looksLikeFullUuid(const std::string& s) {
 }
 
 void apply_depmap(Task& t, tc::DependencyMapWrapper& depmap) {
-  auto u = tc::uuid_from_string(t.get("uuid"));
+  auto uuid_str = t.get("uuid");
+  if (!looksLikeFullUuid(uuid_str)) return;
+  auto u = tc::uuid_from_string(uuid_str);
   t.is_blocked = depmap.is_blocked(u);
   t.is_blocking = depmap.is_blocking(u);
 }

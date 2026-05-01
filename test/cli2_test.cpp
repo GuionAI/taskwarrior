@@ -54,7 +54,7 @@ void seed(CLI2& cli2,
 
 ////////////////////////////////////////////////////////////////////////////////
 int TEST_NAME(int, char**) {
-  UnitTest t(7);
+  UnitTest t(15);
   Context context;
   Context::setContext(&context);
   CLI2& cli2 = context.cli2;
@@ -109,6 +109,24 @@ int TEST_NAME(int, char**) {
   cli2.detectPureUuidFilter();
   t.is(cli2._pure_uuid_filter, true,
        "detectPureUuidFilter: shared-prefix uuid still pure (resolution deferred to get)");
+
+  // Unit tests for looksLikeHexPrefix — guards detectPureUuidFilter's hex path.
+  // Positive cases:
+  t.ok(looksLikeHexPrefix("deadbeef"),
+       "looksLikeHexPrefix: 8 lowercase hex chars");
+  t.ok(looksLikeHexPrefix("DEADBEEF"),
+       "looksLikeHexPrefix: 8 uppercase hex chars");
+  t.ok(looksLikeHexPrefix("abc12345"),
+       "looksLikeHexPrefix: 8 mixed-case hex chars");
+  // Negative cases:
+  t.ok(!looksLikeHexPrefix(""),
+       "looksLikeHexPrefix: empty string rejected");
+  t.ok(!looksLikeHexPrefix("abc"),
+       "looksLikeHexPrefix: < 8 chars rejected");
+  t.ok(!looksLikeHexPrefix("deadbeef1"),
+       "looksLikeHexPrefix: > 8 chars rejected");
+  t.ok(!looksLikeHexPrefix("deadbegg"),
+       "looksLikeHexPrefix: non-hex char rejected");
 
   return 0;
 }

@@ -92,7 +92,12 @@ void Filter::subset(std::vector<Task>& output) {
     output.clear();
     for (const auto& uuid : cli2._uuid_list) {
       Task t;
-      if (tdb2.get(uuid, t)) output.push_back(t);
+      if (tdb2.get(uuid, t)) {
+        output.push_back(t);
+      } else {
+        Context::getContext().debug(
+            format("Filter: UUID '{1}' not found", uuid));
+      }
     }
     _startCount = (int)cli2._uuid_list.size();
     _endCount = (int)output.size();

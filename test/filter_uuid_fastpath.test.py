@@ -94,6 +94,16 @@ class TestFilterUuidFastPath(TestCase):
     def test_bogus_prefix_export(self):
         """task <bogus-prefix> export returns no task — no crash."""
         code, out, err = self.t("99999999 export")
+        self.assertEqual(code, 0, "bogus prefix returns exit 0, not error")
+        self.assertNotIn('"description":"pending-', out)
+        self.assertNotIn('"description":"completed-', out)
+
+    def test_invalid_full_format_export(self):
+        """task <invalid-36-char> export returns empty — looksLikeFullUuid
+        rejects it and TDB2::get falls through to Tier 2/3, which find no
+        match, so no crash and empty output."""
+        code, out, err = self.t("gggggggg-1111-1111-1111-111111111111 export")
+        self.assertEqual(code, 0, "invalid full-format uuid returns exit 0")
         self.assertNotIn('"description":"pending-', out)
         self.assertNotIn('"description":"completed-', out)
 
