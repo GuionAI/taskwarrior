@@ -35,7 +35,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 int TEST_NAME(int, char**) {
-  UnitTest t(21);
+  UnitTest t(26);
   Context context;
   Context::setContext(&context);
 
