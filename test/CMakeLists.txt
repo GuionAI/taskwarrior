@@ -13,6 +13,7 @@ include_directories (${CMAKE_SOURCE_DIR}
 # All C++ test files. Note that the portion before `.cpp` must be a valid,
 # unique C++ identifier.
 set(test_SRCS
+  cli2_test.cpp
   col_test.cpp
   dom_test.cpp
   eval_test.cpp
@@ -121,6 +122,7 @@ set (pythonTests
   feature.print.empty.columns.test.py
   feedback.test.py
   filter.test.py
+  filter_uuid_fastpath.test.py
   fontunderline.test.py
   format.test.py
   gc.test.py

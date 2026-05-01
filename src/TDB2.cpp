@@ -38,12 +38,40 @@
 #include <util.h>
 
 #include <algorithm>
+#include <cctype>
 #include <set>
 #include <unordered_set>
 #include <vector>
 
 bool TDB2::debug_mode = false;
-static void dependency_scan(std::vector<Task>&);
+
+namespace {
+
+// Validate that a string is a well-formed 36-char hyphenated UUID. Required
+// before calling tc::uuid_from_string, which panics on invalid input. Mirrors
+// the rejection criteria for the hyphenated form in tc::Uuid::parse_str:
+// length 36, hyphens at positions 8/13/18/23, and the remaining 32 chars hex.
+bool looksLikeFullUuid(const std::string& s) {
+  if (s.size() != 36) return false;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (i == 8 || i == 13 || i == 18 || i == 23) {
+      if (s[i] != '-') return false;
+    } else {
+      if (!std::isxdigit(static_cast<unsigned char>(s[i]))) return false;
+    }
+  }
+  return true;
+}
+
+void apply_depmap(Task& t, tc::DependencyMapWrapper& depmap) {
+  auto uuid_str = t.get("uuid");
+  if (!looksLikeFullUuid(uuid_str)) return;
+  auto u = tc::uuid_from_string(uuid_str);
+  t.is_blocked = depmap.is_blocked(u);
+  t.is_blocking = depmap.is_blocking(u);
+}
+
+}  // namespace
 
 // Keys that must never be written to TaskChampion storage:
 //   uuid/id  — synthetic keys managed by tch itself
@@ -237,7 +265,8 @@ const std::vector<Task> TDB2::all_tasks() {
     all.push_back(Task(std::move(tctask)));
   }
 
-  dependency_scan(all);
+  auto depmap = replica()->dependency_map();
+  for (auto& t : all) apply_depmap(t, *depmap);
 
   Context::getContext().time_load_us += timer.total_us();
   return all;
@@ -255,7 +284,8 @@ const std::vector<Task> TDB2::pending_tasks() {
       result.push_back(Task(std::move(tctask)));
     }
 
-    dependency_scan(result);
+    auto depmap = replica()->dependency_map();
+    for (auto& t : result) apply_depmap(t, *depmap);
 
     Context::getContext().time_load_us += timer.total_us();
     _pending_tasks = result;
@@ -293,25 +323,52 @@ void TDB2::invalidate_cached_info() {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Locate task by UUID, including by partial ID, wherever it is.
+//
+// Three-tier fast path. The cached DependencyMap (replica()->dependency_map())
+// is consulted at the return point of whichever tier hits — this preserves the
+// is_blocked/is_blocking population that the prior pending_tasks() preload
+// supplied, without paying for a full pending+completed scan.
+//
+// Tier 1: Full-UUID PK lookup via get_task_data. Authoritative miss for the
+//         supported storage backends (PowerSync indexes ps_data__tc_tasks by
+//         id; pgwire backend uses the same id-PK contract).
+// Tier 2: Working-set-first prefix scan via pending_task_data — cheap, hits
+//         the common case of a UUID prefix on a pending task.
+// Tier 3: Full-table prefix fallback via all_task_data — covers
+//         completed/recurring tasks via 8-char prefix.
 bool TDB2::get(const std::string& uuid, Task& task) {
-  // Load all pending tasks in order to get dependency data, and in particular
-  // `task.is_blocking` and `task.is_blocked`, set correctly.
-  std::vector<Task> pending = pending_tasks();
+  auto depmap = replica()->dependency_map();
 
-  // try by raw uuid, if the length is right
-  for (auto& pending_task : pending) {
-    if (closeEnough(pending_task.get("uuid"), uuid, uuid.length())) {
-      task = pending_task;
+  // Tier 1: full-UUID PK fast path.
+  if (looksLikeFullUuid(uuid)) {
+    auto maybe = replica()->get_task_data(tc::uuid_from_string(uuid));
+    if (maybe.is_some()) {
+      auto tctask = maybe.take();
+      task = Task{std::move(tctask)};
+      apply_depmap(task, *depmap);
+      return true;
+    }
+    return false;
+  }
+
+  // Tier 2: working-set first.
+  for (auto& maybe_tctask : replica()->pending_task_data()) {
+    auto tctask = maybe_tctask.take();
+    auto tctask_uuid = static_cast<std::string>(tctask->get_uuid().to_string());
+    if (closeEnough(tctask_uuid, uuid, uuid.length())) {
+      task = Task{std::move(tctask)};
+      apply_depmap(task, *depmap);
       return true;
     }
   }
 
-  // Nothing to do but iterate over all tasks and check whether it's closeEnough.
+  // Tier 3: full-table fallback.
   for (auto& maybe_tctask : replica()->all_task_data()) {
     auto tctask = maybe_tctask.take();
     auto tctask_uuid = static_cast<std::string>(tctask->get_uuid().to_string());
     if (closeEnough(tctask_uuid, uuid, uuid.length())) {
       task = Task{std::move(tctask)};
+      apply_depmap(task, *depmap);
       return true;
     }
   }
@@ -378,32 +435,6 @@ int TDB2::num_local_changes() { return (int)replica()->num_local_operations(); }
 
 ////////////////////////////////////////////////////////////////////////////////
 int TDB2::num_reverts_possible() { return (int)replica()->num_undo_points(); }
-
-////////////////////////////////////////////////////////////////////////////////
-// For any task that has depenencies, follow the chain of dependencies until the
-// end.  Along the way, update the Task::is_blocked and Task::is_blocking data
-// cache.
-static void dependency_scan(std::vector<Task>& tasks) {
-  for (auto& left : tasks) {
-    for (auto& dep : left.getDependencyUUIDs()) {
-      for (auto& right : tasks) {
-        if (right.get("uuid") == dep) {
-          // GC hasn't run yet, check both tasks for their current status
-          Task::status lstatus = left.getStatus();
-          Task::status rstatus = right.getStatus();
-          if (lstatus != Task::completed && lstatus != Task::deleted &&
-              rstatus != Task::completed && rstatus != Task::deleted) {
-            left.is_blocked = true;
-            right.is_blocking = true;
-          }
-
-          // Only want to break out of the "right" loop.
-          break;
-        }
-      }
-    }
-  }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Returns sibling recurrence instances (same recurrence parent, excluding self).
