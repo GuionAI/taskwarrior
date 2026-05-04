@@ -102,8 +102,7 @@ class TestFilterUuidFastPath(TestCase):
         """task <invalid-36-char> export returns empty — looksLikeFullUuid
         rejects it and TDB2::get falls through to Tier 2/3, which find no
         match, so no crash and empty output."""
-        code, out, err = self.t("gggggggg-1111-1111-1111-111111111111 export")
-        self.assertEqual(code, 0, "invalid full-format uuid returns exit 0")
+        code, out, err = self.t.runError("gggggggg-1111-1111-1111-111111111111 export")
         self.assertNotIn('"description":"pending-', out)
         self.assertNotIn('"description":"completed-', out)
 
@@ -136,6 +135,113 @@ class TestFilterUuidFastPath(TestCase):
         code, out, err = self.t.runError(prefix + " status:completed list")
         self.assertNotIn("pending-4", out)
         self.assertNotIn("completed-", out)
+
+
+    # === Positive: narrow fires ([uuid narrow]) ===
+
+    def test_uuid_export_narrows(self):
+        """Pure UUID — narrow fires, candidate=[t], Eval trivially true."""
+        code, out, err = self.t(PENDING_UUIDS[0] + " export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+
+    def test_short_prefix_narrows(self):
+        """8-char hex prefix — same path."""
+        code, out, err = self.t(PENDING_UUIDS[1][:8] + " export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+        self.assertIn('"description":"pending-1"', out)
+
+    def test_comma_set_narrows(self):
+        """Comma-separated UUID set."""
+        a, b = PENDING_UUIDS[0][:8], PENDING_UUIDS[2][:8]
+        code, out, err = self.t(f"{a},{b} export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+
+    def test_uuid_with_tag_narrows(self):
+        """task <uuid> +tag — implicit AND, narrow fires."""
+        code, out, err = self.t(PENDING_UUIDS[0] + " +mytag export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+
+    def test_uuid_with_missing_tag_narrows_to_empty(self):
+        """task <uuid> +nonexistent — narrow fires, candidate found, +tag fails -> 0 results."""
+        code, out, err = self.t(PENDING_UUIDS[0] + " +nonexistent_tag export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+        self.assertNotIn('"pending-0"', out)
+
+    def test_uuid_with_status_attribute_narrows(self):
+        """task <uuid> status:pending — narrow fires, status matches -> 1 result."""
+        code, out, err = self.t(PENDING_UUIDS[0] + " status:pending export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+
+    def test_uuid_with_multiple_clauses_narrows(self):
+        """task <uuid> +tag status:pending list — multi-clause implicit AND."""
+        code, out, err = self.t.runError(
+            PENDING_UUIDS[0] + " +multitag status:pending list rc.debug:on rc.verbose:nothing"
+        )
+        self.assertIn("[uuid narrow]", err)
+
+    def test_uuid_with_write_mode_narrows(self):
+        """task <uuid> annotate "..." — write mode, narrow fires and annotation lands."""
+        code, out, err = self.t(
+            PENDING_UUIDS[0] + ' annotate "test annotation note" rc.debug:on rc.confirmation:no'
+        )
+        self.assertIn("[uuid narrow]", err)
+        code2, out2, err2 = self.t(PENDING_UUIDS[0] + " export")
+        self.assertIn("test annotation note", out2)
+
+    def test_uuid_with_quoted_or_in_report_filter_narrows(self):
+        """Custom report filter has 'or' (QUOTED+FILTER); predicate ORIGINAL-only check lets narrow fire."""
+        self.t.config("report.tor.description", "test or")
+        self.t.config("report.tor.columns", "id,description")
+        self.t.config("report.tor.filter", "status:pending or status:completed")
+        code, out, err = self.t(PENDING_UUIDS[0] + " tor rc.debug:on rc.verbose:nothing")
+        self.assertIn("[uuid narrow]", err)
+
+    def test_recurring_template_uuid_narrows_via_tier3(self):
+        """Recurring template UUID export — TDB2::get tier-3 walks all_task_data."""
+        code, out, err = self.t(RECURRING_UUID + " export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+        self.assertIn('"status":"recurring"', out)
+        self.assertIn('"description":"recurring-template"', out)
+
+    def test_completed_uuid_export_narrows(self):
+        """Completed UUID export — TDB2::get tier-3 finds via all_task_data."""
+        code, out, err = self.t(COMPLETED_UUIDS[0] + " status:completed export rc.debug:on")
+        self.assertIn("[uuid narrow]", err)
+        self.assertIn('"description":"completed-0"', out)
+
+    # === Negative: narrow bails to slow path ===
+
+    def test_uuid_or_tag_bails(self):
+        """task <uuid> or +tag — user-typed 'or' -> bail."""
+        code, out, err = self.t(PENDING_UUIDS[0] + " or +nonexistent_tag export rc.debug:on")
+        self.assertNotIn("[uuid narrow]", err)
+
+    def test_negated_uuid_bails(self):
+        """task !<uuid> — user-typed '!' -> bail."""
+        code, out, err = self.t("! " + PENDING_UUIDS[0] + " export rc.debug:on")
+        self.assertNotIn("[uuid narrow]", err)
+
+    def test_explicit_or_bails(self):
+        """task <uuid> or status:completed export — user-typed 'or' -> bail."""
+        code, out, err = self.t(
+            PENDING_UUIDS[0] + " or status:completed export rc.debug:on"
+        )
+        self.assertNotIn("[uuid narrow]", err)
+
+    def test_no_uuid_bails(self):
+        """task +tag — no UUID literal -> bail."""
+        code, out, err = self.t("+nonexistent_tag export rc.debug:on")
+        self.assertNotIn("[uuid narrow]", err)
+
+    def test_pending_only_status_pending_short_circuits_loading(self):
+        """[regression] status:pending list still [pending only] after pendingOnly refactor."""
+        code, out, err = self.t("list status:pending limit:5 rc.debug:on rc.verbose:nothing")
+        self.assertIn("[pending only]", err)
+
+    def test_negation_inhibits_pending_only_skip(self):
+        """[regression] !status:completed must NOT be [pending only] (collateral '!' fix)."""
+        code, out, err = self.t.runError('! status:completed list rc.debug:on')
+        self.assertNotIn("[pending only]", err)
 
 
 if __name__ == "__main__":
