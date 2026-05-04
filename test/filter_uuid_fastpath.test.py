@@ -176,6 +176,7 @@ class TestFilterUuidFastPath(TestCase):
         """task <uuid> status:pending — narrow fires, status matches -> 1 result."""
         code, out, err = self.t(PENDING_UUIDS[0] + " status:pending export rc.debug:on")
         self.assertIn("[uuid narrow]", err)
+        self.assertIn('"description":"pending-0"', out)
 
     def test_uuid_with_multiple_clauses_narrows(self):
         """task <uuid> +tag status:pending list — multi-clause implicit AND."""
