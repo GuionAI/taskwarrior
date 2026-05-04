@@ -73,6 +73,9 @@ class TestFilterUuidFastPath(TestCase):
             f'"due":"1800000000","recur":"weekly"}}'
         )
         self.t("import -", input="[" + ",".join(rows) + "]")
+        # Register tags needed by tag-filter tests (PowerSync requires registry)
+        self.t("tag add mytag")
+        self.t("tag add multitag")
 
     def test_full_uuid_export(self):
         """task <full-uuid> export returns the matching task."""
@@ -158,8 +161,10 @@ class TestFilterUuidFastPath(TestCase):
 
     def test_uuid_with_tag_narrows(self):
         """task <uuid> +tag — implicit AND, narrow fires."""
+        self.t(PENDING_UUIDS[0] + " modify +mytag")
         code, out, err = self.t(PENDING_UUIDS[0] + " +mytag export rc.debug:on")
         self.assertIn("[uuid narrow]", err)
+        self.assertIn('"description":"pending-0"', out)
 
     def test_uuid_with_missing_tag_narrows_to_empty(self):
         """task <uuid> +nonexistent — narrow fires, candidate found, +tag fails -> 0 results."""
