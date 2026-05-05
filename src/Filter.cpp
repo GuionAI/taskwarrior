@@ -83,26 +83,55 @@ void Filter::subset(std::vector<Task>& output) {
   auto& cli2 = Context::getContext().cli2;
   cli2.prepareFilter();
 
-  // Pure-UUID fast path: the entire filter resolves to N UUID(s). Skip the
-  // pending+completed loads and resolve via TDB2::get per UUID. tdb2.get
-  // already covers the recurring-template fallback (its tier 3 walks
-  // all_task_data), so the lines-139-147 fallback is correctly bypassed here.
-  if (cli2._pure_uuid_filter) {
+  // UUID-narrow fast path: if the user's filter places UUID literals at
+  // AND-conjunct positions only, narrow the candidate set to those UUIDs
+  // (via TDB2::get, which covers pending/completed/recurring via its tier-3
+  // fallback) and run Eval on the narrowed set. Subsumes the prior
+  // "pure UUID" short-circuit — pure UUID is just narrowable with no extra
+  // predicate clauses, and Eval on N=1 candidate is microsecond-cheap.
+  if (cli2._uuid_narrowable) {
     auto& tdb2 = Context::getContext().tdb2;
-    output.clear();
+
+    std::vector<Task> candidates;
     for (const auto& uuid : cli2._uuid_list) {
       Task t;
       if (tdb2.get(uuid, t)) {
-        output.push_back(t);
+        candidates.push_back(std::move(t));
       } else {
         Context::getContext().debug(
             format("Filter: UUID '{1}' not found", uuid));
       }
     }
+
+    std::vector<std::pair<std::string, Lexer::Type>> precompiled;
+    for (auto& a : cli2._args)
+      if (a.hasTag("FILTER")) precompiled.emplace_back(a.getToken(), a._lextype);
+
+    output.clear();
+    if (precompiled.size()) {
+      Eval eval;
+      eval.addSource(domSource);
+      eval.debug(Context::getContext().config.getInteger("debug.parser") >= 3 ? true : false);
+      eval.compileExpression(precompiled);
+
+      for (auto& task : candidates) {
+        auto currentTask = Context::getContext().withCurrentTask(&task);
+        Variant var;
+        eval.evaluateCompiledExpression(var);
+        if (var.get_bool()) output.push_back(task);
+      }
+      eval.debug(false);
+    } else {
+      // No FILTER tokens at all — shouldn't happen when _uuid_list is non-
+      // empty (UUID literals are themselves FILTER), but for safety: emit
+      // candidates as-is.
+      output = candidates;
+    }
+
     _startCount = (int)cli2._uuid_list.size();
     _endCount = (int)output.size();
     Context::getContext().debug(
-        format("Filtered {1} tasks --> {2} tasks [pure uuid]", _startCount, _endCount));
+        format("Filtered {1} tasks --> {2} tasks [uuid narrow]", _startCount, _endCount));
     Context::getContext().time_filter_us += timer.total_us();
     return;
   }
@@ -213,9 +242,6 @@ bool Filter::pendingOnly() const {
   int countWaiting = 0;
   int countRecurring = 0;
   int countUUID = (int)Context::getContext().cli2._uuid_list.size();
-  int countOr = 0;
-  int countXor = 0;
-  int countNot = 0;
   bool pendingTag = false;
   bool activeTag = false;
 
@@ -224,9 +250,6 @@ bool Filter::pendingOnly() const {
       std::string raw = a.attribute("raw");
       std::string canonical = a.attribute("canonical");
 
-      if (a._lextype == Lexer::Type::op && raw == "or") ++countOr;
-      if (a._lextype == Lexer::Type::op && raw == "xor") ++countXor;
-      if (a._lextype == Lexer::Type::op && raw == "not") ++countNot;
       if (a._lextype == Lexer::Type::dom && canonical == "status") ++countStatus;
       if (raw == "pending") ++countPending;
       if (raw == "waiting") ++countWaiting;
@@ -241,7 +264,7 @@ bool Filter::pendingOnly() const {
 
   if (countUUID) return false;
 
-  if (countOr || countXor || countNot) return false;
+  if (Context::getContext().cli2.hasFilterBoolOp(/*originalOnly=*/false)) return false;
 
   if (pendingTag || activeTag) return true;
 

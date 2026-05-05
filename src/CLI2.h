@@ -76,7 +76,8 @@ class CLI2 {
   void addModifications(const std::string& arg);
   void addContext(bool readable, bool writeable);
   void prepareFilter();
-  void detectPureUuidFilter();
+  bool hasFilterBoolOp(bool originalOnly = false) const;
+  void detectUuidNarrowable();
   const std::vector<std::string> getWords();
   const std::vector<A2> getMiscellaneous();
   bool canonicalize(std::string&, const std::string&, const std::string&);
@@ -116,7 +117,7 @@ class CLI2 {
   std::vector<A2> _args{};
 
   std::vector<std::string> _uuid_list{};
-  bool _pure_uuid_filter{false};
+  bool _uuid_narrowable{false};
   std::string _command{""};
   bool _context_added{false};
 };

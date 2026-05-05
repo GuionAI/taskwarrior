@@ -574,14 +574,14 @@ void CLI2::addContext(bool readable, bool writeable) {
 void CLI2::prepareFilter() {
   // Clear and re-populate.
   _uuid_list.clear();
-  _pure_uuid_filter = false;
+  _uuid_narrowable = false;
   _context_added = false;
 
   // Remove all the syntactic sugar for FILTERs.
   lexFilterArgs();
   findIDs();
   findUUIDs();
-  detectPureUuidFilter();
+  detectUuidNarrowable();
   insertIDExpr();
   desugarFilterPlainArgs();
   findStrayModifications();
@@ -721,6 +721,18 @@ const std::string CLI2::dump(const std::string& title) const {
   }
 
   return out.str();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool CLI2::hasFilterBoolOp(bool originalOnly) const {
+  for (const auto& a : _args) {
+    if (!a.hasTag("FILTER")) continue;
+    if (originalOnly && !a.hasTag("ORIGINAL")) continue;
+    if (a._lextype != Lexer::Type::op) continue;
+    const std::string raw = a.attribute("raw");
+    if (raw == "or" || raw == "xor" || raw == "not" || raw == "!") return true;
+  }
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1413,45 +1425,41 @@ void CLI2::findUUIDs() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Decide whether the user's filter is purely UUID(s) — `task abc12345 export`,
-// `task abc12345,def67890 done`. Runs between findUUIDs (which populates
-// _uuid_list) and insertIDExpr (which rewrites the original tokens into a
-// synthesized `(uuid="..." or ...)` expression). After insertIDExpr the
-// original shape is gone, so this is the only seam where the predicate can
-// inspect the user's literal input.
+// Decide whether the user's filter is "UUID-narrowable" — there is at least
+// one UUID literal in _uuid_list AND the user-typed FILTER expression does not
+// place any UUID under boolean OR / XOR / NOT.
 //
-// The predicate is conservative: any FILTER-tagged arg that isn't a
-// known-UUID-prefix raw token (or a comma-set of them) bails out, leaving the
-// bool false and routing to the existing slow path.
-void CLI2::detectPureUuidFilter() {
+// When narrowable, Filter::subset narrows the candidate task set to
+// _uuid_list (resolved via TDB2::get per UUID) before running Eval to apply
+// the rest of the filter predicate. Skips the full pending+completed scan.
+//
+// Safety: the safety condition for narrowing is "every match of the filter
+// has its UUID in _uuid_list". This holds iff every UUID literal sits at an
+// AND-conjunct position with no NOT above it. We approximate this with a
+// linear scan checking that no user-typed (ORIGINAL-tagged) FILTER arg is
+// a boolean op {or, xor, not, !}. Wrap-parens added by parenthesizeOriginal-
+// Filter (also ORIGINAL+FILTER op-tokens, raw "(" and ")") pass through —
+// they don't violate AND-conjunct safety.
+//
+// Report-default filters injected via setupReportFilter are tagged QUOTED+
+// FILTER (not ORIGINAL). Even when they contain `or` (e.g. report.recurring,
+// report.timesheet), the user's UUID remains AND-conjunct of (report) AND
+// (user). Therefore the predicate must check ORIGINAL-only — checking all
+// FILTER args would falsely bail on `task <uuid> recurring` and similar.
+//
+// Conservative: filters where UUID is genuinely under user-typed OR (e.g.
+// `task <uuid1> or <uuid2> X`, where narrowing to {uuid1,uuid2} is in fact
+// safe) bail to slow path. Acceptable; future refactor task can extend the
+// predicate to special-case OR-of-only-UUIDs.
+//
+// Runs in prepareFilter between findUUIDs (which populates _uuid_list) and
+// insertIDExpr (which synthesizes `( uuid="..." or uuid="..." )` for multi-
+// UUID filters; the synthetic OR would be a false positive if predicate ran
+// after).
+void CLI2::detectUuidNarrowable() {
   if (_uuid_list.empty()) return;
-
-  std::unordered_set<std::string> uuid_set(_uuid_list.begin(), _uuid_list.end());
-
-  for (const auto& a : _args) {
-    if (!a.hasTag("FILTER")) continue;
-
-    const std::string raw = a.attribute("raw");
-
-    if (a._lextype == Lexer::Type::word ||
-        a._lextype == Lexer::Type::identifier ||
-        a._lextype == Lexer::Type::uuid) {
-      if (uuid_set.find(raw) == uuid_set.end()) return;
-    } else if (a._lextype == Lexer::Type::set) {
-      // The raw attribute is the FULL comma-separated string, not an individual
-      // element — _uuid_list was populated by splitting via pushHexPrefixesFromSet.
-      auto elements = split(raw, ',');
-      if (elements.empty()) return;
-      for (auto& element : elements) {
-        if (!looksLikeHexPrefix(element)) return;
-        if (uuid_set.find(element) == uuid_set.end()) return;
-      }
-    } else {
-      return;
-    }
-  }
-
-  _pure_uuid_filter = true;
+  if (hasFilterBoolOp(/*originalOnly=*/true)) return;
+  _uuid_narrowable = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
