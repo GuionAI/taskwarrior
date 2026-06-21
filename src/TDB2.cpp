@@ -341,8 +341,8 @@ void TDB2::invalidate_cached_info() {
 bool TDB2::get(const std::string& uuid, Task& task) {
   auto depmap = replica()->dependency_map();
 
-  // Numeric task refs are per-user short IDs. Prefer them over numeric UUID
-  // prefixes; if no short ID matches, keep the historical UUID-prefix fallback.
+  // Numeric task refs are per-user short IDs. Only 8-char numeric refs may fall
+  // back to the historical displayed UUID-prefix form after a short-ID miss.
   if (taskref::looksLikeNumericShortId(uuid)) {
     auto maybe = replica()->get_task_data_by_ref(uuid);
     if (maybe.is_some()) {
@@ -350,6 +350,10 @@ bool TDB2::get(const std::string& uuid, Task& task) {
       task = Task{std::move(tctask)};
       apply_depmap(task, *depmap);
       return true;
+    }
+
+    if (!taskref::looksLikeHexPrefix(uuid)) {
+      return false;
     }
   }
 
