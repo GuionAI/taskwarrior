@@ -350,16 +350,12 @@ bool TDB2::get(const std::string& uuid, Task& task) {
   // Numeric task refs are per-user short IDs. Prefer them over numeric UUID
   // prefixes; if no short ID matches, keep the historical UUID-prefix fallback.
   if (looksLikeShortId(uuid)) {
-    try {
-      auto resolved = replica()->resolve_task_ref(uuid);
-      auto maybe = replica()->get_task_data(resolved);
-      if (maybe.is_some()) {
-        auto tctask = maybe.take();
-        task = Task{std::move(tctask)};
-        apply_depmap(task, *depmap);
-        return true;
-      }
-    } catch (...) {
+    auto maybe = replica()->get_task_data_by_ref(uuid);
+    if (maybe.is_some()) {
+      auto tctask = maybe.take();
+      task = Task{std::move(tctask)};
+      apply_depmap(task, *depmap);
+      return true;
     }
   }
 
