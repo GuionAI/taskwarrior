@@ -46,7 +46,8 @@ class TestShortID(TestCase):
             "import -",
             input="""[
         {"description":"short-id target","entry":"1700000000","status":"pending","uuid":"aaaaaaaa-1111-4111-8111-111111111111"},
-        {"description":"numeric-prefix target","entry":"1700000000","status":"pending","uuid":"12345678-2222-4222-8222-222222222222"}
+        {"description":"numeric-prefix target","entry":"1700000000","status":"pending","uuid":"12345678-2222-4222-8222-222222222222"},
+        {"description":"short-numeric-prefix target","entry":"1700000000","status":"pending","uuid":"42000000-3333-4333-8333-333333333333"}
         ]""",
         )
         self._set_short_id(SHORT_ID_UUID, 12345678)
@@ -89,6 +90,11 @@ class TestShortID(TestCase):
     def test_uuid_prefix_falls_back_when_no_short_id_matches(self):
         code, out, err = self.t("aaaaaaaa export")
         self.assertIn('"description":"short-id target"', out)
+
+    def test_short_numeric_id_miss_does_not_fallback_to_uuid_prefix(self):
+        code, out, err = self.t.runError("42 info")
+        self.assertNotIn("short-numeric-prefix target", out)
+        self.assertNotIn("short-numeric-prefix target", err)
 
 
 if __name__ == "__main__":
