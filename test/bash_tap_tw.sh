@@ -34,30 +34,32 @@ function setup_taskrc {
 
     sqlite3 "$POWERSYNC_DB_PATH" <<'SCHEMA'
 CREATE TABLE IF NOT EXISTS tc_tasks_data (
-    id TEXT PRIMARY KEY, user_id TEXT, data TEXT NOT NULL DEFAULT '{}',
+    id TEXT PRIMARY KEY, short_id INTEGER, user_id TEXT, data TEXT NOT NULL DEFAULT '{}',
     entry_at TEXT, status TEXT, description TEXT, priority TEXT,
     modified_at TEXT, due_at TEXT, scheduled_at TEXT, start_at TEXT,
     end_at TEXT, wait_at TEXT, parent_id TEXT, position TEXT, project_id TEXT
 );
 CREATE VIEW IF NOT EXISTS tc_tasks AS
-    SELECT id, user_id, data, entry_at, status, description, priority,
+    SELECT id, short_id, user_id, data, entry_at, status, description, priority,
            modified_at, due_at, scheduled_at, start_at, end_at, wait_at,
            parent_id, position, project_id
     FROM tc_tasks_data;
 CREATE TRIGGER IF NOT EXISTS tc_tasks_insert
     INSTEAD OF INSERT ON tc_tasks BEGIN
         INSERT OR REPLACE INTO tc_tasks_data
-            (id, user_id, data, entry_at, status, description, priority,
+            (id, short_id, user_id, data, entry_at, status, description, priority,
              modified_at, due_at, scheduled_at, start_at, end_at, wait_at,
              parent_id, position, project_id)
-        VALUES (NEW.id, NEW.user_id, COALESCE(NEW.data, '{}'), NEW.entry_at,
-                NEW.status, NEW.description, NEW.priority, NEW.modified_at,
-                NEW.due_at, NEW.scheduled_at, NEW.start_at, NEW.end_at,
-                NEW.wait_at, NEW.parent_id, NEW.position, NEW.project_id);
+        VALUES (NEW.id, NEW.short_id, NEW.user_id, COALESCE(NEW.data, '{}'),
+                NEW.entry_at, NEW.status, NEW.description, NEW.priority,
+                NEW.modified_at, NEW.due_at, NEW.scheduled_at, NEW.start_at,
+                NEW.end_at, NEW.wait_at, NEW.parent_id, NEW.position,
+                NEW.project_id);
     END;
 CREATE TRIGGER IF NOT EXISTS tc_tasks_update
     INSTEAD OF UPDATE ON tc_tasks BEGIN
         UPDATE tc_tasks_data SET
+            short_id = NEW.short_id,
             user_id = NEW.user_id, data = COALESCE(NEW.data, '{}'),
             entry_at = NEW.entry_at, status = NEW.status,
             description = NEW.description, priority = NEW.priority,

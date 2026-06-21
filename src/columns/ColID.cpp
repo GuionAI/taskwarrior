@@ -36,7 +36,7 @@ ColumnID::ColumnID() {
   _label = "ID";
   _modifiable = false;
   _styles = {"short"};
-  _examples = {"a1b2c3d4"};
+  _examples = {"42"};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
