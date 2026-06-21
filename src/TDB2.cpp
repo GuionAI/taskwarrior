@@ -32,6 +32,7 @@
 #include <Datetime.h>
 #include <TDB2.h>
 #include <Table.h>
+#include <TaskRef.h>
 #include <format.h>
 #include <shared.h>
 #include <stdlib.h>
@@ -60,13 +61,6 @@ bool looksLikeFullUuid(const std::string& s) {
       if (!std::isxdigit(static_cast<unsigned char>(s[i]))) return false;
     }
   }
-  return true;
-}
-
-bool looksLikeShortId(const std::string& s) {
-  if (s.empty()) return false;
-  for (char c : s)
-    if (!std::isdigit(static_cast<unsigned char>(c))) return false;
   return true;
 }
 
@@ -349,7 +343,7 @@ bool TDB2::get(const std::string& uuid, Task& task) {
 
   // Numeric task refs are per-user short IDs. Prefer them over numeric UUID
   // prefixes; if no short ID matches, keep the historical UUID-prefix fallback.
-  if (looksLikeShortId(uuid)) {
+  if (taskref::looksLikeNumericShortId(uuid)) {
     auto maybe = replica()->get_task_data_by_ref(uuid);
     if (maybe.is_some()) {
       auto tctask = maybe.take();

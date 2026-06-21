@@ -24,34 +24,33 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <cmake.h>
-// cmake.h include header must come first
+#ifndef INCLUDED_TASK_REF
+#define INCLUDED_TASK_REF
 
-#include <ColID.h>
+#include <cctype>
+#include <string>
 
-////////////////////////////////////////////////////////////////////////////////
-ColumnID::ColumnID() {
-  _name = "id";
-  _style = "short";
-  _label = "ID";
-  _modifiable = false;
-  _styles = {"short"};
-  _examples = {"42", "a1b2c3d4"};
+namespace taskref {
+
+inline bool looksLikeHexPrefix(const std::string& s) {
+  if (s.length() != 8) return false;
+  for (char c : s)
+    if (!std::isxdigit(static_cast<unsigned char>(c))) return false;
+  return true;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Set the minimum and maximum widths for the value.
-void ColumnID::measure(Task& task, unsigned int& minimum, unsigned int& maximum) {
-  minimum = maximum = (unsigned int)task.id.length();
+inline bool looksLikeNumericShortId(const std::string& s) {
+  if (s.empty()) return false;
+  for (char c : s)
+    if (!std::isdigit(static_cast<unsigned char>(c))) return false;
+  return true;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-void ColumnID::render(std::vector<std::string>& lines, Task& task, int width, Color& color) {
-  // Completed and deleted tasks have no ID.
-  if (!task.id.empty())
-    renderStringRight(lines, width, color, task.id);
-  else
-    renderStringRight(lines, width, color, "-");
+inline bool looksLikeTaskRef(const std::string& s) {
+  return looksLikeNumericShortId(s) || looksLikeHexPrefix(s);
 }
 
+}  // namespace taskref
+
+#endif
 ////////////////////////////////////////////////////////////////////////////////
