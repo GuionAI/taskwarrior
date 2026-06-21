@@ -161,6 +161,7 @@ set (pythonTests
   reports.test.py
   search.test.py
   sequence.test.py
+  short_id.test.py
   shell.test.py
   show.test.py
   sorting.test.py

@@ -32,6 +32,7 @@
 #include <Datetime.h>
 #include <TDB2.h>
 #include <Table.h>
+#include <TaskRef.h>
 #include <format.h>
 #include <shared.h>
 #include <stdlib.h>
@@ -74,10 +75,11 @@ void apply_depmap(Task& t, tc::DependencyMapWrapper& depmap) {
 }  // namespace
 
 // Keys that must never be written to TaskChampion storage:
-//   uuid/id  — synthetic keys managed by tch itself
+//   uuid/id/short_id — synthetic keys managed by tch or the backing database
 //   tags     — legacy comma-separated representation; tch-native tag_* keys carry the same data
 //   depends  — legacy comma-separated representation; tch-native dep_* keys carry the same data
-static const std::unordered_set<std::string> kTCSkippedKeys = {"uuid", "id", "tags", "depends"};
+static const std::unordered_set<std::string> kTCSkippedKeys = {"uuid", "id", "short_id", "tags",
+                                                               "depends"};
 
 ////////////////////////////////////////////////////////////////////////////////
 void TDB2::open_replica(const std::string& db_path) {
@@ -338,6 +340,18 @@ void TDB2::invalidate_cached_info() {
 //         completed/recurring tasks via 8-char prefix.
 bool TDB2::get(const std::string& uuid, Task& task) {
   auto depmap = replica()->dependency_map();
+
+  // Numeric task refs are per-user short IDs. Prefer them over numeric UUID
+  // prefixes; if no short ID matches, keep the historical UUID-prefix fallback.
+  if (taskref::looksLikeNumericShortId(uuid)) {
+    auto maybe = replica()->get_task_data_by_ref(uuid);
+    if (maybe.is_some()) {
+      auto tctask = maybe.take();
+      task = Task{std::move(tctask)};
+      apply_depmap(task, *depmap);
+      return true;
+    }
+  }
 
   // Tier 1: full-UUID PK fast path.
   if (looksLikeFullUuid(uuid)) {

@@ -33,6 +33,7 @@
 #include <Color.h>
 #include <Context.h>
 #include <Lexer.h>
+#include <TaskRef.h>
 #include <format.h>
 #include <shared.h>
 #include <stdlib.h>
@@ -1293,21 +1294,14 @@ void CLI2::desugarFilterPatterns() {
 //   a single prefix:        a1b2c3d4
 //   a comma-separated list: a1b2c3d4,e5f6a7b8
 //
-static bool looksLikeHexPrefix(const std::string& s) {
-  if (s.length() != 8) return false;
-  for (char c : s)
-    if (!std::isxdigit(static_cast<unsigned char>(c))) return false;
-  return true;
-}
-
-// Pushes all hex-prefix elements from a comma-separated string into _uuid_list.
+// Pushes all task-ref elements from a comma-separated string into _uuid_list.
 // Returns true if any were added.
 static bool pushHexPrefixesFromSet(const std::string& raw,
                                    std::vector<std::string>& uuid_list) {
   auto elements = split(raw, ',');
   bool any = false;
   for (auto& element : elements) {
-    if (looksLikeHexPrefix(element)) {
+    if (taskref::looksLikeTaskRef(element)) {
       uuid_list.push_back(element);
       any = true;
     }
@@ -1328,11 +1322,12 @@ void CLI2::findIDs() {
 
         std::string raw = a.attribute("raw");
 
-        // A hex-only word/identifier token is treated as a UUID prefix.
+        // Numeric short IDs and hex-only words are treated as task refs.
         bool isWordOrIdent = (a._lextype == Lexer::Type::word ||
-                              a._lextype == Lexer::Type::identifier);
+                              a._lextype == Lexer::Type::identifier ||
+                              a._lextype == Lexer::Type::number);
         if (isWordOrIdent && !previousFilterArgWasAnOperator &&
-            looksLikeHexPrefix(raw)) {
+            taskref::looksLikeTaskRef(raw)) {
           changes = true;
           _uuid_list.push_back(raw);
         } else if (a._lextype == Lexer::Type::set) {
@@ -1354,8 +1349,9 @@ void CLI2::findIDs() {
           if (a.hasTag("MODIFICATION")) {
             std::string raw = a.attribute("raw");
 
-            if ((a._lextype == Lexer::Type::word || a._lextype == Lexer::Type::identifier) &&
-                looksLikeHexPrefix(raw)) {
+            if ((a._lextype == Lexer::Type::word || a._lextype == Lexer::Type::identifier ||
+                 a._lextype == Lexer::Type::number) &&
+                taskref::looksLikeTaskRef(raw)) {
               changes = true;
               a.unTag("MODIFICATION");
               a.tag("FILTER");
@@ -1494,9 +1490,6 @@ void CLI2::insertIDExpr() {
         A2 opSimilar("=", Lexer::Type::op);
         opSimilar.tag("FILTER");
 
-        A2 argUUID("uuid", Lexer::Type::dom);
-        argUUID.tag("FILTER");
-
         reconstructed.push_back(openParen);
 
         // Add all UUID prefix items.
@@ -1504,6 +1497,8 @@ void CLI2::insertIDExpr() {
           if (u != _uuid_list.begin()) reconstructed.push_back(opOr);
 
           reconstructed.push_back(openParen);
+          A2 argUUID(taskref::looksLikeNumericShortId(*u) ? "id" : "uuid", Lexer::Type::dom);
+          argUUID.tag("FILTER");
           reconstructed.push_back(argUUID);
           reconstructed.push_back(opSimilar);
 

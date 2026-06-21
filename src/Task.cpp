@@ -734,7 +734,12 @@ void Task::parseTC(rust::Box<tc::TaskData> task) {
   }
 
   data["uuid"] = static_cast<std::string>(task->get_uuid().to_string());
-  id = (data["uuid"].length() >= 8) ? data["uuid"].substr(0, 8) : "";
+  if (has("short_id")) {
+    id = get("short_id");
+    remove("short_id");
+  } else {
+    id = (data["uuid"].length() >= 8) ? data["uuid"].substr(0, 8) : "";
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

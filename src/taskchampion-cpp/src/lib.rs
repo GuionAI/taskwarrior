@@ -137,6 +137,9 @@ mod ffi {
         /// Get an existing task by its UUID.
         fn get_task_data(&mut self, uuid: Uuid) -> Result<OptionTaskData>;
 
+        /// Get an existing task by its full UUID or numeric short ID.
+        fn get_task_data_by_ref(&mut self, task_ref: String) -> Result<OptionTaskData>;
+
         /// Get the operations for a task task by its UUID.
         fn get_task_operations(&mut self, uuid: Uuid) -> Result<Vec<Operation>>;
 
@@ -694,6 +697,15 @@ impl Replica {
 
     fn get_task_data(&mut self, uuid: ffi::Uuid) -> Result<ffi::OptionTaskData, CppError> {
         rt().block_on(async { Ok(self.0.get_task_data(uuid.into()).await?.into()) })
+    }
+
+    fn get_task_data_by_ref(&mut self, task_ref: String) -> Result<ffi::OptionTaskData, CppError> {
+        rt().block_on(async {
+            let Some(uuid) = self.0.resolve_task_ref(&task_ref).await? else {
+                return Ok(None.into());
+            };
+            Ok(self.0.get_task_data(uuid).await?.into())
+        })
     }
 
     fn get_task_operations(&mut self, uuid: ffi::Uuid) -> Result<Vec<Operation>, CppError> {
