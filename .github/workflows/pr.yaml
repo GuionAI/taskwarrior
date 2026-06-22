@@ -13,7 +13,7 @@ jobs:
     uses: ./.github/workflows/check.yaml
 
   osv-scan:
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.5
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8
     permissions:
       actions: read
       contents: read
