@@ -29,6 +29,7 @@
 
 #include <CmdAdd.h>
 #include <Context.h>
+#include <DescriptionInput.h>
 #include <feedback.h>
 #include <format.h>
 #include <taskchampion-cpp/lib.h>
@@ -49,6 +50,8 @@ CmdAdd::CmdAdd() {
 
 ////////////////////////////////////////////////////////////////////////////////
 int CmdAdd::execute(std::string& output) {
+  applyDescriptionInputOptions();
+
   // Apply the command line modifications to the new task.
   Task task;
 

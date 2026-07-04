@@ -67,6 +67,40 @@ class TestBug3584(TestCase):
         self.assertIn("You cannot set an end date on a pending task.", err)
 
 
+class TestModifyDescriptionInput(TestCase):
+    def setUp(self):
+        self.t = Task()
+        self.t("add original")
+
+    def test_modify_description_from_stdin(self):
+        "Testing modify command with description read from stdin"
+
+        description = '"Line one" with `code`\nLine two with $HOME and (parens)'
+        self.t.runSuccess("1 modify --stdin", input=description)
+
+        self.assertEqual(self.t.export_one("1")["description"], description)
+
+    def test_modify_description_from_file(self):
+        "Testing modify command with description read from a file"
+
+        path = os.path.join(self.t.datadir, "description.txt")
+        description = '"File line one"\nFile line two with `ticks`'
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(description)
+
+        self.t.runSuccess(["1", "modify", "--file", path])
+
+        self.assertEqual(self.t.export_one("1")["description"], description)
+
+    def test_modify_description_from_named_option(self):
+        "Testing modify command with description provided by named option"
+
+        description = '"Named description with `ticks` and (parens)"'
+        self.t.runSuccess(["1", "modify", "--description", description])
+
+        self.assertEqual(self.t.export_one("1")["description"], description)
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 

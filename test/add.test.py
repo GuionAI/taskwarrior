@@ -122,6 +122,34 @@ class TestAdd(TestCase):
         code, out, err = self.t("_get 1.description")
         self.assertIn("Return Randy's stuff\n", out)
 
+    def test_add_description_from_stdin(self):
+        "Testing add command with description read from stdin"
+
+        description = '"Line one" with `code`\nLine two with $HOME and (parens)'
+        self.t.runSuccess("add --stdin", input=description)
+
+        self.assertEqual(self.t.latest["description"], description)
+
+    def test_add_description_from_file(self):
+        "Testing add command with description read from a file"
+
+        path = os.path.join(self.t.datadir, "description.txt")
+        description = '"File line one"\nFile line two with `ticks`'
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(description)
+
+        self.t.runSuccess(["add", "--file", path])
+
+        self.assertEqual(self.t.latest["description"], description)
+
+    def test_add_description_from_named_option(self):
+        "Testing add command with description provided by named option"
+
+        description = '"Named description with `ticks` and (parens)"'
+        self.t.runSuccess(["add", "--description", description])
+
+        self.assertEqual(self.t.latest["description"], description)
+
 
 class TestBug1359(TestCase):
     def setUp(self):

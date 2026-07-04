@@ -1946,6 +1946,13 @@ void Task::modify(modType type, bool text_required /* = false */) {
         // 'value' requires eval.
         std::string name = a.attribute("canonical");
         std::string value = a.attribute("value");
+        if (name == "description" && a.hasTag("DESCRIPTION_INPUT")) {
+          Context::getContext().debug(label + "description <-- '" + value + '\'');
+          set("description", value);
+          mods = true;
+          continue;
+        }
+
         if (value == "" || value == "''" || value == "\"\"") {
           // Special case: Handle bulk removal of 'tags' and 'depends" virtual
           // attributes
