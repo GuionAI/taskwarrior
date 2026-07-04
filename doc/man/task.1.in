@@ -360,12 +360,6 @@ Shows all waiting tasks matching the filter.
 
 .TP
 .B task add <mods>
-.br
-.B task add --stdin
-.br
-.B task add --file <path>
-.br
-.B task add --description <text>
 Adds a new pending task to the task list. It is affected by the currently set
 context.
 
@@ -432,12 +426,6 @@ the currently set context.
 
 .TP
 .B task <filter> modify <mods>
-.br
-.B task <filter> modify --stdin
-.br
-.B task <filter> modify --file <path>
-.br
-.B task <filter> modify --description <text>
 Modifies the existing task with provided information.
 
 .TP
@@ -1521,13 +1509,12 @@ quotes to the description or escaping the special character:
   $ task add escaped \\' quote
 .fi
 
-Descriptions for add and modify can also be supplied with named options. These
+Descriptions for add and modify can also be supplied from piped stdin. These
 forms avoid shell interpretation of description text:
 
 .nf
-  $ task add --description "literal text"
-  $ task add --file ./description.txt
-  $ printf 'literal text' | task 123 modify --stdin
+  $ printf 'literal text' | task add
+  $ printf 'literal text' | task 123 modify
 .fi
 
 The argument \-\- (a double dash) tells Taskwarrior to treat all other args

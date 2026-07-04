@@ -30,8 +30,8 @@
 #include <DescriptionInput.h>
 #include <Context.h>
 #include <format.h>
+#include <unistd.h>
 
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -39,32 +39,10 @@
 namespace {
 
 ////////////////////////////////////////////////////////////////////////////////
-bool splitInlineOption(const std::string& raw, const std::string& option, std::string& value) {
-  if (raw.size() <= option.size()) return false;
-  if (raw.compare(0, option.size(), option) != 0) return false;
-  if (raw[option.size()] != ':' && raw[option.size()] != '=') return false;
-
-  value = raw.substr(option.size() + 1);
-  return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 std::string readStdin() {
   std::ostringstream buffer;
   buffer << std::cin.rdbuf();
-  if (std::cin.bad() || buffer.fail()) throw std::string("Failed to read description from stdin.");
-
-  return buffer.str();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-std::string readFile(const std::string& path) {
-  std::ifstream in(path.c_str(), std::ios::in | std::ios::binary);
-  if (!in) throw format("Failed to read description from file '{1}'.", path);
-
-  std::ostringstream buffer;
-  buffer << in.rdbuf();
-  if (in.bad() || buffer.fail()) throw format("Failed to read description from file '{1}'.", path);
+  if (std::cin.bad()) throw std::string("Failed to read description from stdin.");
 
   return buffer.str();
 }
@@ -82,14 +60,7 @@ A2 descriptionModification(const std::string& description) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool isDescriptionInputOption(const std::string& raw) {
-  std::string unused;
-  return raw == "--stdin" || raw == "--file" || raw == "--description" ||
-         splitInlineOption(raw, "--file", unused) || splitInlineOption(raw, "--description", unused);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool isPositionalDescriptionWord(const A2& arg) {
+bool isDescriptionWord(const A2& arg) {
   if (!arg.hasTag("MODIFICATION")) return false;
   if (arg._lextype != Lexer::Type::word) return false;
 
@@ -97,68 +68,40 @@ bool isPositionalDescriptionWord(const A2& arg) {
   return raw.substr(0, 7) != "before:" && raw.substr(0, 6) != "after:";
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool isDescriptionPair(const A2& arg) {
+  if (!arg.hasTag("MODIFICATION")) return false;
+  if (arg._lextype != Lexer::Type::pair) return false;
+
+  return arg.attribute("canonical") == "description" || arg.attribute("name") == "description";
+}
+
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
-void applyDescriptionInputOptions() {
+void applyPipedDescriptionInput() {
   auto& args = Context::getContext().cli2._args;
+  if (isatty(STDIN_FILENO)) return;
+
+  for (const auto& arg : args)
+    if (isDescriptionWord(arg) || isDescriptionPair(arg)) return;
+
+  auto description = readStdin();
+  if (description == "") return;
+
+  auto descriptionArg = descriptionModification(description);
   std::vector<A2> reconstructed;
-  bool found = false;
-  std::string description;
-
-  for (size_t i = 0; i < args.size(); ++i) {
-    const auto& arg = args[i];
-    const auto raw = arg.attribute("raw");
-    std::string value;
-
-    if (raw == "--stdin") {
-      if (found) throw std::string("Specify only one of --stdin, --file, or --description.");
-      description = readStdin();
-      found = true;
-      continue;
-    }
-
-    if (raw == "--file") {
-      if (found) throw std::string("Specify only one of --stdin, --file, or --description.");
-      if (i + 1 == args.size()) throw std::string("The --file option requires a path.");
-      description = readFile(args[++i].attribute("raw"));
-      found = true;
-      continue;
-    }
-
-    if (splitInlineOption(raw, "--file", value)) {
-      if (found) throw std::string("Specify only one of --stdin, --file, or --description.");
-      description = readFile(value);
-      found = true;
-      continue;
-    }
-
-    if (raw == "--description") {
-      if (found) throw std::string("Specify only one of --stdin, --file, or --description.");
-      if (i + 1 == args.size()) throw std::string("The --description option requires text.");
-      description = args[++i].attribute("raw");
-      found = true;
-      continue;
-    }
-
-    if (splitInlineOption(raw, "--description", value)) {
-      if (found) throw std::string("Specify only one of --stdin, --file, or --description.");
-      description = value;
-      found = true;
-      continue;
+  bool inserted = false;
+  for (const auto& arg : args) {
+    if (!inserted && arg.hasTag("MODIFICATION")) {
+      reconstructed.push_back(descriptionArg);
+      inserted = true;
     }
 
     reconstructed.push_back(arg);
   }
 
-  if (!found) return;
-
-  for (const auto& arg : reconstructed)
-    if (isDescriptionInputOption(arg.attribute("raw")) || isPositionalDescriptionWord(arg))
-      throw std::string(
-          "Description input options cannot be combined with positional description text.");
-
-  reconstructed.push_back(descriptionModification(description));
+  if (!inserted) reconstructed.push_back(descriptionArg);
   args = reconstructed;
 }
 

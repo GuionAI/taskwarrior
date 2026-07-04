@@ -72,33 +72,29 @@ class TestModifyDescriptionInput(TestCase):
         self.t = Task()
         self.t("add original")
 
-    def test_modify_description_from_stdin(self):
-        "Testing modify command with description read from stdin"
+    def test_modify_description_from_pipe(self):
+        "Testing modify command with description read from piped stdin"
 
         description = '"Line one" with `code`\nLine two with $HOME and (parens)'
-        self.t.runSuccess("1 modify --stdin", input=description)
+        self.t.runSuccess("1 modify", input=description)
 
         self.assertEqual(self.t.export_one("1")["description"], description)
 
-    def test_modify_description_from_file(self):
-        "Testing modify command with description read from a file"
+    def test_modify_piped_description_with_modification(self):
+        "Testing modify command with piped description and other modifications"
 
-        path = os.path.join(self.t.datadir, "description.txt")
         description = '"File line one"\nFile line two with `ticks`'
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(description)
-
-        self.t.runSuccess(["1", "modify", "--file", path])
+        self.t.runSuccess("1 modify priority:H", input=description)
 
         self.assertEqual(self.t.export_one("1")["description"], description)
+        self.assertEqual(self.t.export_one("1")["priority"], "H")
 
-    def test_modify_description_from_named_option(self):
-        "Testing modify command with description provided by named option"
+    def test_modify_positional_description_ignores_piped_stdin(self):
+        "Testing modify command keeps positional description when stdin is piped"
 
-        description = '"Named description with `ticks` and (parens)"'
-        self.t.runSuccess(["1", "modify", "--description", description])
+        self.t.runSuccess("1 modify positional description", input="piped description")
 
-        self.assertEqual(self.t.export_one("1")["description"], description)
+        self.assertEqual(self.t.export_one("1")["description"], "positional description")
 
 
 if __name__ == "__main__":

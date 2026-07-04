@@ -50,7 +50,7 @@ CmdAdd::CmdAdd() {
 
 ////////////////////////////////////////////////////////////////////////////////
 int CmdAdd::execute(std::string& output) {
-  applyDescriptionInputOptions();
+  applyPipedDescriptionInput();
 
   // Apply the command line modifications to the new task.
   Task task;

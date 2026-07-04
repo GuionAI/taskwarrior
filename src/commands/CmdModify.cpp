@@ -59,7 +59,7 @@ CmdModify::CmdModify() {
 ////////////////////////////////////////////////////////////////////////////////
 int CmdModify::execute(std::string&) {
   auto rc = 0;
-  applyDescriptionInputOptions();
+  applyPipedDescriptionInput();
 
   // Apply filter.
   Filter filter;
