@@ -80,14 +80,26 @@ class TestModifyDescriptionInput(TestCase):
 
         self.assertEqual(self.t.export_one("1")["description"], description)
 
-    def test_modify_piped_description_with_modification(self):
-        "Testing modify command with piped description and other modifications"
+    def test_modify_with_modification_ignores_piped_stdin(self):
+        "Testing modify command keeps stdin available when modifications are present"
 
-        description = '"File line one"\nFile line two with `ticks`'
-        self.t.runSuccess("1 modify priority:H", input=description)
+        self.t.runSuccess("1 modify priority:H", input="not a description")
 
-        self.assertEqual(self.t.export_one("1")["description"], description)
+        self.assertEqual(self.t.export_one("1")["description"], "original")
         self.assertEqual(self.t.export_one("1")["priority"], "H")
+
+    def test_modify_with_bulk_confirmation_keeps_stdin_for_prompt(self):
+        "Testing bulk modify still reads confirmation from stdin"
+
+        self.t("add second")
+        self.t.config("bulk", "2")
+
+        self.t.runSuccess("1 2 modify priority:H", input="All\n")
+
+        self.assertEqual(self.t.export_one("1")["description"], "original")
+        self.assertEqual(self.t.export_one("2")["description"], "second")
+        self.assertEqual(self.t.export_one("1")["priority"], "H")
+        self.assertEqual(self.t.export_one("2")["priority"], "H")
 
     def test_modify_positional_description_ignores_piped_stdin(self):
         "Testing modify command keeps positional description when stdin is piped"

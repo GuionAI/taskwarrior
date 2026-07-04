@@ -76,6 +76,9 @@ bool isDescriptionPair(const A2& arg) {
   return arg.attribute("canonical") == "description" || arg.attribute("name") == "description";
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool isModification(const A2& arg) { return arg.hasTag("MODIFICATION"); }
+
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -85,6 +88,10 @@ void applyPipedDescriptionInput() {
 
   for (const auto& arg : args)
     if (isDescriptionWord(arg) || isDescriptionPair(arg)) return;
+
+  if (Context::getContext().cli2.getCommand() == "modify")
+    for (const auto& arg : args)
+      if (isModification(arg)) return;
 
   auto description = readStdin();
   if (description == "") return;
