@@ -67,6 +67,60 @@ class TestBug3584(TestCase):
         self.assertIn("You cannot set an end date on a pending task.", err)
 
 
+class TestModifyDescriptionInput(TestCase):
+    def setUp(self):
+        self.t = Task()
+        self.t("add original")
+
+    def test_modify_description_from_pipe(self):
+        "Testing modify command with description read from piped stdin"
+
+        description = '"Line one" with `code`\nLine two with $HOME and (parens)'
+        self.t.runSuccess("1 modify", input=description + "\n")
+
+        self.assertEqual(self.t.export_one("1")["description"], description)
+
+    def test_modify_with_modification_ignores_piped_stdin(self):
+        "Testing modify command keeps stdin available when modifications are present"
+
+        self.t.runSuccess("1 modify priority:H", input="not a description")
+
+        self.assertEqual(self.t.export_one("1")["description"], "original")
+        self.assertEqual(self.t.export_one("1")["priority"], "H")
+
+    def test_modify_with_bulk_confirmation_keeps_stdin_for_prompt(self):
+        "Testing bulk modify still reads confirmation from stdin"
+
+        self.t("add second")
+        self.t.config("bulk", "2")
+
+        self.t.runSuccess("1 2 modify priority:H", input="All\n")
+
+        self.assertEqual(self.t.export_one("1")["description"], "original")
+        self.assertEqual(self.t.export_one("2")["description"], "second")
+        self.assertEqual(self.t.export_one("1")["priority"], "H")
+        self.assertEqual(self.t.export_one("2")["priority"], "H")
+
+    def test_modify_bulk_description_from_pipe_auto_confirms(self):
+        "Testing bulk modify with piped description does not prompt from exhausted stdin"
+
+        self.t("add second")
+        self.t.config("bulk", "2")
+        description = "bulk description"
+
+        self.t.runSuccess("1 2 modify", input=description + "\n")
+
+        self.assertEqual(self.t.export_one("1")["description"], description)
+        self.assertEqual(self.t.export_one("2")["description"], description)
+
+    def test_modify_positional_description_ignores_piped_stdin(self):
+        "Testing modify command keeps positional description when stdin is piped"
+
+        self.t.runSuccess("1 modify positional description", input="piped description")
+
+        self.assertEqual(self.t.export_one("1")["description"], "positional description")
+
+
 if __name__ == "__main__":
     from simpletap import TAPTestRunner
 

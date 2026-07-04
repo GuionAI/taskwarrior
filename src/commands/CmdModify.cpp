@@ -29,6 +29,7 @@
 
 #include <CmdModify.h>
 #include <Context.h>
+#include <DescriptionInput.h>
 #include <Filter.h>
 #include <feedback.h>
 #include <format.h>
@@ -58,6 +59,8 @@ CmdModify::CmdModify() {
 ////////////////////////////////////////////////////////////////////////////////
 int CmdModify::execute(std::string&) {
   auto rc = 0;
+  bool pipedDescription = applyPipedDescriptionInput();
+  if (pipedDescription) _permission_all = true;
 
   // Apply filter.
   Filter filter;

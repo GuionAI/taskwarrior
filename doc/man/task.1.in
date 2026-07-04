@@ -1509,6 +1509,14 @@ quotes to the description or escaping the special character:
   $ task add escaped \\' quote
 .fi
 
+Descriptions for add and modify can also be supplied from piped stdin. These
+forms avoid shell interpretation of description text:
+
+.nf
+  $ printf 'literal text' | task add
+  $ printf 'literal text' | task 123 modify
+.fi
+
 The argument \-\- (a double dash) tells Taskwarrior to treat all other args
 as description:
 
