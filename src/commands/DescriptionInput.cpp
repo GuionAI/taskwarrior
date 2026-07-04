@@ -32,6 +32,7 @@
 #include <format.h>
 #include <unistd.h>
 
+#include <cctype>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -44,7 +45,10 @@ std::string readStdin() {
   buffer << std::cin.rdbuf();
   if (std::cin.bad()) throw std::string("Failed to read description from stdin.");
 
-  return buffer.str();
+  auto description = buffer.str();
+  while (!description.empty() && std::isspace(static_cast<unsigned char>(description.back())))
+    description.pop_back();
+  return description;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

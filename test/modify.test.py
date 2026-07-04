@@ -76,7 +76,7 @@ class TestModifyDescriptionInput(TestCase):
         "Testing modify command with description read from piped stdin"
 
         description = '"Line one" with `code`\nLine two with $HOME and (parens)'
-        self.t.runSuccess("1 modify", input=description)
+        self.t.runSuccess("1 modify", input=description + "\n")
 
         self.assertEqual(self.t.export_one("1")["description"], description)
 

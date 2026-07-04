@@ -126,7 +126,7 @@ class TestAdd(TestCase):
         "Testing add command with description read from piped stdin"
 
         description = '"Line one" with `code`\nLine two with $HOME and (parens)'
-        self.t.runSuccess("add", input=description)
+        self.t.runSuccess("add", input=description + "\n")
 
         self.assertEqual(self.t.latest["description"], description)
 
@@ -134,7 +134,7 @@ class TestAdd(TestCase):
         "Testing add command with piped description and other modifications"
 
         description = '"Line one"\nLine two with priority'
-        self.t.runSuccess("add priority:H", input=description)
+        self.t.runSuccess("add priority:H", input=description + "\n")
 
         self.assertEqual(self.t.latest["description"], description)
         self.assertEqual(self.t.latest["priority"], "H")
