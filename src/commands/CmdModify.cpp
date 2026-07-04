@@ -59,7 +59,8 @@ CmdModify::CmdModify() {
 ////////////////////////////////////////////////////////////////////////////////
 int CmdModify::execute(std::string&) {
   auto rc = 0;
-  applyPipedDescriptionInput();
+  bool pipedDescription = applyPipedDescriptionInput();
+  if (pipedDescription) _permission_all = true;
 
   // Apply filter.
   Filter filter;

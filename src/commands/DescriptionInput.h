@@ -27,7 +27,7 @@
 #ifndef INCLUDED_DESCRIPTIONINPUT
 #define INCLUDED_DESCRIPTIONINPUT
 
-void applyPipedDescriptionInput();
+bool applyPipedDescriptionInput();
 
 #endif
 ////////////////////////////////////////////////////////////////////////////////

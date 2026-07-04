@@ -86,19 +86,19 @@ bool isModification(const A2& arg) { return arg.hasTag("MODIFICATION"); }
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
-void applyPipedDescriptionInput() {
+bool applyPipedDescriptionInput() {
   auto& args = Context::getContext().cli2._args;
-  if (isatty(STDIN_FILENO)) return;
+  if (isatty(STDIN_FILENO)) return false;
 
   for (const auto& arg : args)
-    if (isDescriptionWord(arg) || isDescriptionPair(arg)) return;
+    if (isDescriptionWord(arg) || isDescriptionPair(arg)) return false;
 
   if (Context::getContext().cli2.getCommand() == "modify")
     for (const auto& arg : args)
-      if (isModification(arg)) return;
+      if (isModification(arg)) return false;
 
   auto description = readStdin();
-  if (description == "") return;
+  if (description == "") return false;
 
   auto descriptionArg = descriptionModification(description);
   std::vector<A2> reconstructed;
@@ -114,6 +114,7 @@ void applyPipedDescriptionInput() {
 
   if (!inserted) reconstructed.push_back(descriptionArg);
   args = reconstructed;
+  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

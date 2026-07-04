@@ -101,6 +101,18 @@ class TestModifyDescriptionInput(TestCase):
         self.assertEqual(self.t.export_one("1")["priority"], "H")
         self.assertEqual(self.t.export_one("2")["priority"], "H")
 
+    def test_modify_bulk_description_from_pipe_auto_confirms(self):
+        "Testing bulk modify with piped description does not prompt from exhausted stdin"
+
+        self.t("add second")
+        self.t.config("bulk", "2")
+        description = "bulk description"
+
+        self.t.runSuccess("1 2 modify", input=description + "\n")
+
+        self.assertEqual(self.t.export_one("1")["description"], description)
+        self.assertEqual(self.t.export_one("2")["description"], description)
+
     def test_modify_positional_description_ignores_piped_stdin(self):
         "Testing modify command keeps positional description when stdin is piped"
 
